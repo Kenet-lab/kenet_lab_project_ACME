@@ -1,0 +1,43 @@
+From dc46e8284bc852a1f34b2feacf75a5e65955a5a4 Mon Sep 17 00:00:00 2001
+From: Dan Katz <dpkatz@gmail.com>
+Date: Thu, 14 May 2020 21:47:46 -0400
+Subject: [PATCH] Simple cleanup of a function
+
+Remove some useless boolean code and add a docstring.
+---
+ io_mod.py | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/io_mod.py b/io_mod.py
+index 8b8f761..4756534 100644
+--- a/io_mod.py
++++ b/io_mod.py
+@@ -158,12 +158,14 @@ def get_subjects(paradigm_dir): # list the subjects in a paradigm directory
+ def get_subject_ids(subjects): # keep contents of paradigm directory if they are subjects
+     return [s for s in subjects if s.isnumeric()]
+ 
+-def check_eeg_availability(raw): # return True/False if EEG channels exist in raw data
++def eeg_data_is_available(raw):
++    """Determine if EEG data is available.
++
++    @param: raw@ The raw data file
++    @returns@ True if EEG channels exist in raw data.
++    """
+     eeg_inds = mne.pick_types(raw.info, meg=False, eeg=True)
+-    if len(eeg_inds) > 0:
+-        return True # EEG available
+-    else:
+-        return False
++    return len(eeg_inds) > 0
+ 
+ def get_eeg_inds(raw):
+     eeg_inds = mne.pick_types(raw.info, meg=False, eeg=True)
+@@ -215,5 +217,3 @@ def log_epochs(epochs): # logging function for epoch data information
+     logging.info('General epoch information:\n{}'.format(epochs))
+     logging.info('Detailed view:\n{}'.format(epochs.info))
+     return
+-
+-
+-- 
+2.26.2
+
