@@ -6,6 +6,7 @@ from analysis import *
 from io_mod import *
 from preprocessing import *
 
+
 def make_topomap(raw, projs, save_loc, ssp_topo_pattern, kind):
     replace_dict = {'subject': get_subject_id_from_data(raw), 'kind': kind}
     fig_topo_fname = format_variable_names(replace_dict, ssp_topo_pattern)
@@ -25,13 +26,12 @@ def plot_evoked_sensor(epochs, save_loc, evoked_sensor_pattern):
     return
 
 
-def plot_sensor_itc_aggregate(itc, save_loc, agg_plot_fname):
-    fig = itc.plot(show=False, combine='mean')
+def plot_sensor_tfr_aggregate(tfr, save_loc, agg_plot_fname):
+    fig = tfr.plot(show=False, combine='mean')
     fig.savefig(join(save_loc, agg_plot_fname))
     return
 
-
-def plot_sensor_itc_channels(sensor_array, freqs, save_loc, ch_plot_fname):
+def plot_sensor_tfr_channels(sensor_array, freqs, save_loc, ch_plot_fname):
     plt.figure(1, clear=True)
     plt.plot(freqs, sensor_array.T)
     plt.ylim((0, 0.75))
@@ -41,6 +41,9 @@ def plot_sensor_itc_channels(sensor_array, freqs, save_loc, ch_plot_fname):
     plt.savefig(join(save_loc, ch_plot_fname))
     plt.close()
     return
+
+
+
 
 
 

@@ -18,7 +18,9 @@ def find_file_matches(loc, pattern):
         logging.error('No files matching pattern {} were found in {}'.format(pattern, loc))
         return None
     else:
-        return files.sort()
+        logging.info('The following files were found:\n{}'.format(files))
+        return files
+
 
 def preload_raws(loc, pattern, concat=True):
     """
@@ -47,6 +49,7 @@ def get_subject_id_from_data(data):
     subject_id = data.info['subject_info']['his_id']
     return subject_id
 
+
 def check_headpositions_match(raws):
     """
     check if device head transformations match between multiple runs of a paradigm
@@ -73,6 +76,7 @@ def find_events(raw, stim_channel):
     events = mne.find_events(raw, stim_channel=stim_channel, shortest_event=1)
     events_baseline = make_events_baseline(events)
     return events, events_baseline
+
 
 def make_events_baseline(events, value=0):
     """
@@ -103,6 +107,7 @@ def read_measure_date(info):
         logging.error('Unable to parse measure timestamp from Info')
         return
 
+
 def save_head_origin(head_origin, save_loc, head_origin_fname):
     """
     :param head_origin: array containing [x y z] coordinates in millimeters
@@ -110,16 +115,19 @@ def save_head_origin(head_origin, save_loc, head_origin_fname):
     np.savetxt(join(save_loc, head_origin_fname), head_origin)
     return
 
+
 def read_proj(proj_loc, proj_pattern, subject, kind):
     replace_dict = {'subject': subject, 'kind': kind}
     proj_fname = format_variable_names(replace_dict, proj_pattern)
     return mne.read_proj(join(proj_loc, proj_fname))
+
 
 def save_proj(projs, proj_save_loc, proj_fname, kind):
     replace_dict = {'kind': kind}
     proj_save_name = format_variable_names(replace_dict, proj_fname)
     mne.write_proj(join(proj_save_loc, proj_save_name), projs)
     return
+
 
 def check_and_build_subdir(subdir, subject): # needs work, should replace more than subject?
     """
@@ -132,6 +140,7 @@ def check_and_build_subdir(subdir, subject): # needs work, should replace more t
         logging.info('{} created'.format(subject_subdir))
     return
 
+
 def save_epochs(epochs, condition_name, save_loc, epoch_pattern): # save epoch data
     replace_dict = {'subject': get_subject_id_from_data(epochs),
                     'condition': condition_name}
@@ -139,35 +148,30 @@ def save_epochs(epochs, condition_name, save_loc, epoch_pattern): # save epoch d
     epochs.save(join(save_loc, epoch_fname), overwrite=True)
     return
 
-def read_epochs(saved_loc, epoch_fname, use_proj): # read epoch data
-    epochs = mne.read_epochs(join(saved_loc, epoch_fname), proj=use_proj, preload=True)
-    return epochs
-
-def save_ica(ica, save_loc, fname): # save ICA model
-    ica.save(join(save_loc, fname))
-    return
-
-def read_ica(saved_loc, fname): # read ICA model
-    ica = mne.preprocessing.read_ica(join(saved_loc, fname))
-    return ica
 
 def get_subjects(paradigm_dir): # list the subjects in a paradigm directory
-    # get subject ids fom the pardigm_dir subdirectory
+    # get subject ids from the pardigm_dir subdirectory
     return listdir(paradigm_dir)
+
 
 def get_subject_ids(subjects): # keep contents of paradigm directory if they are subjects
     return [s for s in subjects if s.isnumeric()]
 
-def check_eeg_availability(raw): # return True/False if EEG channels exist in raw data
+
+def eeg_data_is_available(raw):
+    """Determine if EEG data is available.
+
+    @param: raw@ The raw data file
+    @returns@ True if EEG channels exist in raw data.
+    """
     eeg_inds = mne.pick_types(raw.info, meg=False, eeg=True)
-    if len(eeg_inds) > 0:
-        return True # EEG available
-    else:
-        return False
+    return len(eeg_inds) > 0
+
 
 def get_eeg_inds(raw):
     eeg_inds = mne.pick_types(raw.info, meg=False, eeg=True)
     return eeg_inds
+
 
 def read_bad_channels_eeg(loc, eeg_bads_fname):
     eeg_bads_txt = open(join(loc, eeg_bads_fname))
@@ -175,21 +179,27 @@ def read_bad_channels_eeg(loc, eeg_bads_fname):
     eeg_bads = [line.strip() for line in lines]
     return eeg_bads
 
+
 def read_bad_channels_meg_elekta(loc, meg_bads_fname):
     meg_bads_txt = open(join(loc, meg_bads_fname))
     lines = meg_bads_txt.readlines()
     meg_bads = [line.strip() for line in lines]
     return meg_bads[0] # only difference between the above function is this line... change how MEG bads are written
 
-def save_sensor_itc(itc, save_loc, sensor_itc_fname):
-    itc.save(join(save_loc, sensor_itc_fname))
+
+def save_filtered_signal(filt, l_freq, h_freq, save_loc_signal):
+    subject = get_subject_id_from_data(filt)
+    signal_fname = '{}_{}_{}_filt_raw.fif'.format(subject, l_freq, h_freq)
+    filt.save(join(save_loc_signal, signal_fname))
     return
+
 
 def read_sensor_itc(save_loc, subject, sensor_itc_pattern):
     replace_dict = {'subject': subject}
     itc_name = format_variable_names(replace_dict, sensor_itc_pattern)
     itc = mne.time_frequency.read_tfrs(join(save_loc, itc_name))
     return itc
+
 
 def format_variable_names(replace_dict, *vars): # formats variable names
     return_list = [None] * len(vars)
@@ -200,7 +210,11 @@ def format_variable_names(replace_dict, *vars): # formats variable names
             else:
                 continue
         return_list[i] = var
-    return tuple(return_list)
+    if len(vars) == 1:
+        return return_list[0]
+    else:
+        return tuple(return_list)
+
 
 def log_projs(projs, kind): # logging function for SSP projection information
     # *** what more could I log?
@@ -215,5 +229,3 @@ def log_epochs(epochs): # logging function for epoch data information
     logging.info('General epoch information:\n{}'.format(epochs))
     logging.info('Detailed view:\n{}'.format(epochs.info))
     return
-
-

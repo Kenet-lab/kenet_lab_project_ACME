@@ -4,16 +4,18 @@ import scipy
 import subprocess
 import shlex
 import logging
-
 from visuals import *
 from io_mod import *
+
 
 def apply_bad_channels_eeg(raw, loc, eeg_bads_fname): # read, and add bad EEG channels to raw data
     replace_dict = {'subject': get_subject_id_from_data(raw)}
     eeg_bads_fname = format_variable_names(replace_dict, eeg_bads_fname)
     eeg_bads = read_bad_channels_eeg(loc, eeg_bads_fname)
+    logging.info('Adding the following bad channels (EEG) to {}:\n{}'.format(get_subject_id_from_data(raw), eeg_bads))
     raw.info['bads'] += eeg_bads
     return raw
+
 
 def apply_notch_filter(raw, n_jobs, loc, eeg_bads_fname):
     linefreq = raw.info['line_freq'] # notch filter line frequency
@@ -23,7 +25,8 @@ def apply_notch_filter(raw, n_jobs, loc, eeg_bads_fname):
         raw.notch_filter(np.arange(notch_freq, 241, notch_freq), picks=['eeg'], n_jobs=n_jobs)
     return raw
 
-def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc, subject, eeg_bads_fname):
+
+def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc_eeg, eeg_bads_fname, save_loc_signal):
     """
     :param raw: signal to filter
     :param l_freq: low cut frequency
@@ -35,8 +38,9 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc, subject, eeg_bads_
     raw.load_data()
     eeg_status = check_eeg_availability(raw)
     if eeg and eeg_status: # explicitly check if EEG channels are present
-        raw = apply_notch_filter(raw, n_jobs, save_loc, eeg_bads_fname)
+        raw = apply_notch_filter(raw, n_jobs, save_loc_eeg, eeg_bads_fname)
     raw.filter(l_freq=l_freq, h_freq=h_freq, n_jobs=n_jobs)
+    save_filtered_signal(raw, l_freq, h_freq, save_loc_signal)
     return raw
 
 
@@ -47,12 +51,14 @@ def generate_head_origin(info, subject_meg_dir, head_origin_fname): # calculate,
     """
     all_coords = mne.bem.fit_sphere_to_headshape(info, units='mm')
     head_origin = all_coords[1]
+    logging.info('Head origin coordinates are:\n{}'.format(head_origin))
     save_head_origin(head_origin, subject_meg_dir, head_origin_fname)
     return head_origin
 
+
 def ssp_exg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
     """
-    perform artifact removal via SSP on ECG, EOG channels
+    perform artifact detection and removal via SSP on ECG, EOG channels
     """
     raw = ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
     try:
@@ -72,6 +78,7 @@ def ssp_eog(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pa
     log_projs(blink_projs, 'EOG')
     return raw
 
+
 def ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
     # remove heartbeats via SSP, save projections and figure
     qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params_dict, n_jobs=n_jobs)
@@ -80,8 +87,8 @@ def ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pa
         save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
         make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
     log_projs(qrs_projs, 'ECG')
-
     return raw
+
 
 def maxwell_filter_paradigm(subject, raw_in, sss_out, coords, bads):
     # pass multiple arguments to a shell script for maxwell filtering via Elekta software
@@ -89,10 +96,12 @@ def maxwell_filter_paradigm(subject, raw_in, sss_out, coords, bads):
                                                                  raw_in, sss_out,
                                                                  coords[0], coords[1], coords[2],
                                                                  bads)
+    logging.info('Adding the following bad channels (MEG) to {}:\n{}'.format(subject, bads))
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     out, err = proc.communicate()
     return out, err
+
 
 def maxwell_filter_erm(subject, date, raw_in, sss_out, bads):
     # pass multiple arguments to a shell script for maxwell filtering via Elekta software
@@ -104,15 +113,6 @@ def maxwell_filter_erm(subject, date, raw_in, sss_out, bads):
     return out, err
 
 
-def calculate_epochs(raw, events_baseline, event_ids, tmin, tmax, baseline, proj, reject):
-    """
-    :params tmin, tmax, baseline, proj, reject: part of epochs parameters dictionary to unpack
-    """
-    epochs = mne.Epochs(raw, events_baseline, event_ids, tmin=tmin, tmax=tmax, baseline=baseline,
-                                      proj=proj, reject=reject)
-    return epochs
-
-
 def generate_epochs(raw, events_baseline, conditions_dicts, epochs_parameters_dict,
                     save_loc, epoch_pattern, proc_using_baseline):
     if not proc_using_baseline: # create epochs for all conditions...
@@ -121,11 +121,17 @@ def generate_epochs(raw, events_baseline, conditions_dicts, epochs_parameters_di
 
     for condition_name, condition_info in conditions_dicts.items(): # loop through each condition
         condition_event_id = condition_info['event_id'] # event identifiers to epoch around
-        epochs = calculate_epochs(raw, events_baseline, condition_event_id, **epochs_parameters_dict)
+        epochs_parameters_dict.update({'event_id': condition_event_id})
+        epochs = mne.Epochs(raw, events_baseline, **epochs_parameters_dict)
         log_epochs(epochs)
         save_epochs(epochs, condition_name, save_loc, epoch_pattern)
+    return epochs
 
-    return
+
+
+
+
+
 
 
 

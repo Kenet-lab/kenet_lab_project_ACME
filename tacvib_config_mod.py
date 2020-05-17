@@ -11,7 +11,6 @@ shared_func_dir = join(transcend_dir, 'scripts', 'MEG', 'steven_scripts')
 meg_dir = join(transcend_dir, 'MEG') # MEG directory
 
 erm_dir = join(meg_dir, 'erm') # MEG empty room recordings directory
-
 subjects_dir = join(transcend_dir, 'MRI', 'WMA', 'recons') # MRI directory
 
 n_jobs = cpu_count() - 4
@@ -61,7 +60,11 @@ erm_sss_pattern = 'subject_erm_paradigm_date_raw.fif'
 proj_pattern = 'subject_kind-proj.fif'
 ssp_topo_pattern = 'subject_kind_proj_topomap.png'
 evoked_sensor_pattern = 'subject_sensor_evoked_fignum-plot.png'
-sensor_itc_pattern = 'subject_sensor_itc-tfr.h5'
+sensor_tfr_pattern = 'subject_sensor_kind-tfr.h5'
+
+sensor_tfr_agg_plot_pattern = 'subject_condition_channels_aggregate_sensor_kind.png'
+sensor_tfr_chs_plot_pattern = 'subject_condition_channels_'
+
 sensor_itc_agg_plot_pattern = 'subject_condition_channel_type_aggregate_sensor_itc.png'
 sensor_itc_chs_plot_pattern = 'subject_condition_channel_type_channels_sensor_itc.png'
 
@@ -80,9 +83,9 @@ freqs = arange(7, 99, 2) # frequencies of interest
 n_cycles = freqs / 2.  # different number of cycles per frequency
 n_cycles[freqs < 15] = 2
 
-# merged/specified/grouped event IDs, condition
+# merged/specified/grouped event IDs, conditions
 conditions_dicts = {'25Hz': {'event_id': [1], # key <-> condition name
-                            'value': 25.}, # value <-> condition's information
+                            'value': 25.}, # value <-> condition's information (nested dictionary)
                     'baseline': {'event_id': None,
                                  'value': None}}
 
@@ -93,13 +96,11 @@ epochs_parameters_dict = {'tmin': 0.2, 'tmax': 1.3,
 
 epoch_pattern = 'subject_condition-epo.fif'
 
-itc_params_dict = {'t_start': 0.4, 't_end': 1.0, # would eventually add other parameters like mode = 'mean', 'median', 'max'...
-                   'sliding': False} # in the case of True, supply additional parameters
+# parameters dictionary for windowing power/ITC, include modes like 'mean', 'max'...
+tfr_temporal_dict = {'t_start': 0.4, 't_end': 1.0,
+                     'sliding': False} # if True, supply additional parameters
 
 # script log filenames
 maxwell_script_log_name = 'tacvib_maxwell_script_{}.log'.format(current_datetime)
 epoching_script_log_name = 'tacvib_epoch_script_{}.log'.format(current_datetime)
 sensor_space_script_log_name = 'tacvib_sensor_space_script_{}'.format(current_datetime)
-
-# MNE reports
-#reports = {}
