@@ -1,3 +1,8 @@
+"""
+Artifact removal configuration file
+Holds parameters used in SSP and ICA methods to remove eye blinks and heart beats
+"""
+
 # SSP parameters
 n_grad_ssp = 2
 n_mag_ssp = 2
