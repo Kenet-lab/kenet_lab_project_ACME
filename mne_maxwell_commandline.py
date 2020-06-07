@@ -4,7 +4,6 @@ import sys
 sys.path.insert(0, tacr_cfg.shared_func_dir)
 import json
 import logging
-import argparse
 import io_mod as i_o
 import preprocessing as preproc
 import maxwell_filter_config as sss_cfg
@@ -41,14 +40,3 @@ def main(subject, subject_fnames, log):
     if tacr_cfg.proc_using_erm:
         raw_erm, erm_sss_fname = handle_erm(raw, subject_erm_dir, subject_fnames['raw_erm'], subject_fnames['sss_erm'])
         erm_sss = preproc.mne_maxwell_filter_erm(raw_erm, bads_meg, subject_sss_params, subject_fnames['preproc_subdir'], erm_sss_fname)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-subject', type=str, help='Subject ID')
-    parser.add_argument('-log', type=str, help='Logging script file name')
-    parser.add_argument('-fnames', type=json.loads, help='Subject file naming information')
-
-    arguments = parser.parse_args()
-
-    main(arguments.subject, arguments.fnames, arguments.log)

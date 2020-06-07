@@ -3,7 +3,6 @@ import sys
 sys.path.insert(0, tacr_cfg.shared_func_dir)
 import json
 import logging
-import argparse
 import io_mod as i_o
 import preprocessing as preproc
 import artifact_removal_config as rm_arti_cfg
@@ -31,14 +30,3 @@ def main(subject, subject_fnames, log):
 
     epochs = preproc.generate_epochs(filt_ssp, events_baseline, tacr_cfg.conditions_dicts, tacr_cfg.epochs_parameters_dict,
                                      subject_fnames['epochs_subdir'], subject_fnames['epoch'], tacr_cfg.proc_using_baseline)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-subject', type=str, help='Subject ID')
-    parser.add_argument('-log', type=str, help='Logging script file name')
-    parser.add_argument('-fnames', type=json.loads, help='Subject file naming information')
-
-    arguments = parser.parse_args()
-
-    main(arguments.subject, arguments.fnames, arguments.log)

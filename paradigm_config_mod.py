@@ -9,6 +9,7 @@ meg_dir = join(transcend_dir, 'MEG') # MEG directory
 erm_dir = join(meg_dir, 'erm') # MEG empty room recordings directory
 
 subjects_dir = join(transcend_dir, 'MRI', 'WMA', 'recons') # MRI directory
+# DPK - why "steven_scripts" rather than something generic.
 shared_func_dir = join(transcend_dir, 'scripts', 'MEG', 'steven_scripts')
 
 n_jobs = cpu_count() - 4
