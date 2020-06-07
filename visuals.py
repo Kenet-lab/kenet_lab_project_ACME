@@ -8,9 +8,11 @@ from preprocessing import *
 
 
 def make_topomap(raw, projs, save_loc, ssp_topo_pattern, kind):
-    replace_dict = {'subject': get_subject_id_from_data(raw), 'kind': kind}
-    fig_topo_fname = format_variable_names(replace_dict, ssp_topo_pattern)
-
+    """ plot topographies of SSP projections
+    :param raw: raw data
+    :param projs: projections to plot
+    :param kind: string denoting whether the projections are EOG, ECG..."""
+    fig_topo_fname = format_variable_names({'kind': kind}, ssp_topo_pattern)
     fig_topo = mne.viz.plot_projs_topomap(projs, raw.info, show=False) # plot, save topographies of SSP projections
     fig_topo.savefig(join(save_loc, fig_topo_fname))
     return

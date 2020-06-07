@@ -1,25 +1,21 @@
+import mne
 import fnmatch
 import logging
-import mne
+import numpy as np
 from os.path import join, isdir
 from os import mkdir, listdir
-import numpy as np
-from datetime import datetime
 
 
 def find_file_matches(loc, pattern):
     """
     :param loc: string denoting where file(s) may be found
     :param pattern: string to identify file(s) specified by it
-    :return: file(s) found matching a given pattern, in a given location
+    :return: list of file(s) found matching a given pattern, in a given location
     """
-    files = fnmatch.filter(listdir(loc), pattern)
-    if len(files) == 0:
-        logging.error('No files matching pattern {} were found in {}'.format(pattern, loc))
-        return None
-    else:
-        logging.info('The following files were found:\n{}'.format(files))
-        return files
+    files_matching_pattern = fnmatch.filter(listdir(loc), pattern)
+    file_matches = [] if len(files_matching_pattern) == 0 else files_matching_pattern
+    logging.info(f'The following {len(file_matches)} were found matching the pattern {pattern} in {loc}:\n{listdir(loc)}')
+    return file_matches
 
 
 def preload_raws(loc, pattern, concat=True):
@@ -29,42 +25,22 @@ def preload_raws(loc, pattern, concat=True):
     :param concat: boolean keyword argument to turn on/off raw file concatenation (default True)
     :return: pre-loaded raw .fif file(s)
     """
-    fifs = find_file_matches(loc, pattern)
-    if fifs: # found
-        raws = [mne.io.read_raw_fif(join(loc, fif), preload=False) for fif in fifs]
-        if len(fifs) > 1:
-            return raws[0]
-        elif concat:
-            return mne.io.concatenate_raws(raws)
-        else:
-            return raws
-    else:
-        return
+    list_of_raws = find_file_matches(loc, pattern)
+    try:
+        raws = [mne.io.read_raw_fif(join(loc, fif), preload=True) for fif in list_of_raws]
+    except TypeError:
+        logging.info('Raw files failed to be read')
+    raw = mne.io.concatenate_raws(raws) if concat else raws
+    del raws
+    return raw
 
 
 def get_subject_id_from_data(data):
     """
     :param data: MNE object like raw, epochs, tfr,... that has an Info attribute
+    :return: string denoting the subject ID
     """
-    subject_id = data.info['subject_info']['his_id']
-    return subject_id
-
-
-def check_headpositions_match(raws):
-    """
-    check if device head transformations match between multiple runs of a paradigm
-    NOTE: function assumes the correct head position is the first run's head position, ask Tal + Seppo if this is the case
-    :param raws: raw .fif files
-    :return: bool True (there is a mismatch) or False (no mismatch)
-    """
-    match = True
-    for i, raw in enumerate(raws):
-        if not np.allclose(raws[0].info['dev_head_t'], raw.info['dev_head_t']):
-            match = False
-        else:
-            logging.error('head positions do not match between:\n {}\n{}'.format(raws[0], raws[i]))
-            continue
-    return match
+    return data.info['subject_info']['his_id']
 
 
 def find_events(raw, stim_channel):
@@ -72,6 +48,7 @@ def find_events(raw, stim_channel):
     :param raw: raw file whose info to parse
     :param stim_channel: string stimulus channel name
     :return: events
+    :return: events baseline
     """
     events = mne.find_events(raw, stim_channel=stim_channel, shortest_event=1)
     events_baseline = make_events_baseline(events)
@@ -90,85 +67,68 @@ def make_events_baseline(events, value=0):
     events_baseline[:, 1] = np.zeros(len(events[:, 1])) + value
     return events_baseline
 
-
 def read_measure_date(info):
     """
-    read measure date, convert to YYMMDD to find matching ERM file
+    read measure date, convert to YYYYMMDD to find matching ERM file
     :param info: MNE info object
-    :return: date (YYMMDD) as a string
+    :return: date (YYYYMMDD)
     """
     try:
-        ts = info['meas_date'][0]
-        date = datetime.utcfromtimestamp(int(ts)).strftime('%Y-%m-%d %H:%M:%S')
-        date = date.split(' ')[0]  # just want YYMMDD
-        measure_date = date.replace('-', '')
-        return measure_date
-    except:
-        logging.error('Unable to parse measure timestamp from Info')
-        return
+        visit_datetime = info['meas_date']
+    except KeyError:
+        logging.info('Unable to parse measure timestamp from Info')
+    return visit_datetime.strftime('%Y%m%d')
 
 
-def save_head_origin(head_origin, save_loc, head_origin_fname):
+def read_proj(proj_loc, proj_pattern, kind):
     """
-    :param head_origin: array containing [x y z] coordinates in millimeters
+    :param kind: SSP projection channel kind (EOG, ECG)
     """
-    np.savetxt(join(save_loc, head_origin_fname), head_origin)
-    return
-
-
-def read_proj(proj_loc, proj_pattern, subject, kind):
-    replace_dict = {'subject': subject, 'kind': kind}
+    replace_dict = {'kind': kind}
     proj_fname = format_variable_names(replace_dict, proj_pattern)
     return mne.read_proj(join(proj_loc, proj_fname))
 
 
 def save_proj(projs, proj_save_loc, proj_fname, kind):
+    """
+    :param kind: SSP projection channel kind (EOG, ECG)
+    """
     replace_dict = {'kind': kind}
     proj_save_name = format_variable_names(replace_dict, proj_fname)
     mne.write_proj(join(proj_save_loc, proj_save_name), projs)
-    return
 
 
-def check_and_build_subdir(subdir, subject): # needs work, should replace more than subject?
+def check_and_build_subdir(subdir): # needs work, should replace more than subject?
     """
+    build subject-specific subdirectories
     :param subdir: subject specific subdirectory name
     :param subject: subject ID
     """
-    subject_subdir = subdir.replace('subject', subject)
-    if not isdir(subject_subdir):
-        mkdir(subject_subdir)
-        logging.info('{} created'.format(subject_subdir))
-    return
+    if not isdir(subdir):
+        mkdir(subdir)
+        logging.info(f'{subdir} created')
 
 
-def save_epochs(epochs, condition_name, save_loc, epoch_pattern): # save epoch data
-    replace_dict = {'subject': get_subject_id_from_data(epochs),
-                    'condition': condition_name}
-    epoch_fname = format_variable_names(replace_dict, epoch_pattern)
+def save_epochs(epochs, condition_name, save_loc, epoch_pattern):
+    """save epoch files"""
+    epoch_fname = format_variable_names({'condition': condition_name}, epoch_pattern)
     epochs.save(join(save_loc, epoch_fname), overwrite=True)
-    return
 
 
-def get_subjects(paradigm_dir): # list the subjects in a paradigm directory
-    # get subject ids from the pardigm_dir subdirectory
+def get_subjects(paradigm_dir):
+    """ list the subjects in a paradigm directory"""
     return listdir(paradigm_dir)
 
 
-def get_subject_ids(subjects): # keep contents of paradigm directory if they are subjects
+def get_subject_ids(subjects):
+    """ keep contents of paradigm directory if contents are subjects"""
     return [s for s in subjects if s.isnumeric()]
 
 
-def eeg_data_is_available(raw):
-    """Determine if EEG data is available.
-
-    @param: raw@ The raw data file
-    @returns@ True if EEG channels exist in raw data.
-    """
-    eeg_inds = mne.pick_types(raw.info, meg=False, eeg=True)
-    return len(eeg_inds) > 0
-
-
 def get_eeg_inds(raw):
+    """ locate the indices in the data corresponding to EEG channels
+    :param raw: raw data
+    """
     eeg_inds = mne.pick_types(raw.info, meg=False, eeg=True)
     return eeg_inds
 
@@ -180,20 +140,6 @@ def read_bad_channels_eeg(loc, eeg_bads_fname):
     return eeg_bads
 
 
-def read_bad_channels_meg_elekta(loc, meg_bads_fname):
-    meg_bads_txt = open(join(loc, meg_bads_fname))
-    lines = meg_bads_txt.readlines()
-    meg_bads = [line.strip() for line in lines]
-    return meg_bads[0] # only difference between the above function is this line... change how MEG bads are written
-
-
-def save_filtered_signal(filt, l_freq, h_freq, save_loc_signal):
-    subject = get_subject_id_from_data(filt)
-    signal_fname = '{}_{}_{}_filt_raw.fif'.format(subject, l_freq, h_freq)
-    filt.save(join(save_loc_signal, signal_fname))
-    return
-
-
 def read_sensor_itc(save_loc, subject, sensor_itc_pattern):
     replace_dict = {'subject': subject}
     itc_name = format_variable_names(replace_dict, sensor_itc_pattern)
@@ -201,7 +147,10 @@ def read_sensor_itc(save_loc, subject, sensor_itc_pattern):
     return itc
 
 
-def format_variable_names(replace_dict, *vars): # formats variable names
+def format_variable_names(replace_dict, *vars):
+    """ format any number of variable names
+    :param replace_dict: dictionary whose keys are values to replace and values are replacement values
+    :param vars: any number of strings that we would like to replace values of"""
     return_list = [None] * len(vars)
     for i, var in enumerate(vars):
         for key, value in replace_dict.items():
@@ -222,10 +171,25 @@ def log_projs(projs, kind): # logging function for SSP projection information
         logging.info('Projections ({}) found:\n {}'.format(kind, projs))
     else: # no projections found or added
         logging.info('No {} projections added or found'.format(kind))
-    return
 
 
 def log_epochs(epochs): # logging function for epoch data information
-    logging.info('General epoch information:\n{}'.format(epochs))
-    logging.info('Detailed view:\n{}'.format(epochs.info))
-    return
+    logging.info(f'General epoch information:\n{epochs}')
+    logging.info(f'Detailed view:\n{epochs.info}')
+
+
+def headpositions_match(raws):
+    """
+    check if device head transformations match between multiple runs of a paradigm
+    NOTE: function assumes the correct head position is the first run's head position, ask Tal + Seppo if this is the case
+    :param raws: raw .fif files
+    :return: bool True (head positions match), False (do not match)
+    """
+    match = True
+    for i, raw in enumerate(raws):
+        if not np.allclose(raws[0].info['dev_head_t'], raw.info['dev_head_t']):
+            match = False
+        else: # FIX THIS CODE
+            logging.error('head positions do not match between:\n {}\n{}'.format(raws[0], raws[i]))
+            continue
+    return match
