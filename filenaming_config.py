@@ -1,9 +1,17 @@
+from enum import Enum
 import paradigm_config_mod as paradigm_cfg
 import sys
 sys.path.insert(0, paradigm_cfg.shared_func_dir)
 import io_mod as i_o
 from os.path import join
 from time import strftime
+
+
+class Sentinel(Enum):
+    """Success sentinels for the various stages of processing."""
+    MAXWELL = "maxwell_success"
+    EPOCH = "epoch_success"
+    SENSORS_TFR = "sensor_tfr_success"
 
 ### TOP LEVEL: HARD-CODED LOCATIONS
 current_datetime = strftime('%Y%m%d-%H%M%S')
@@ -30,41 +38,48 @@ maxwell_script_log_name = f'{paradigm}_maxwell_script_{current_datetime}.log'
 epoched_script_log_name = f'{paradigm}_epoch_script_{current_datetime}.log'
 sensor_space_script_log_name = f'{paradigm}_sensor_space_script_{current_datetime}.log'
 
-""" create a dictionary whose keys are the paradigm's subjects
-                        whose values are nested dictionaries of their filenames """
-subjects_filenames_dicts = {}
-for subject in i_o.get_subject_ids(i_o.get_subjects(paradigm_dir)):
-
+def create_paradigm_subject_mapping(subject):
+    """ Create a dictionary whose keys are the paradigm's subjects and
+        whose values are nested dictionaries of their filenames.
+    """
     subject_paradigm_tag = f'{subject}_{paradigm}'
     subject_paradigm_dir = join(paradigm_dir, subject)
 
-    subjects_filenames_dicts[subject] = {}
+    subject_filenames_dict = {}
 
-    subjects_filenames_dicts[subject]['epochs_subdir'] = join(subject_paradigm_dir, 'visit_date', 'epoched')
-    subjects_filenames_dicts[subject]['preproc_subdir'] = join(subject_paradigm_dir, 'visit_date', 'preprocessing')
+    # DPK - sentinel file locations.  Change these to whatever makes
+    # sense for your file layout.
+    subject_filenames_dict[Sentinel.MAXWELL] = join(subject_paradigm_dir, Sentinel.MAXWELL.value)
+    subject_filenames_dict[Sentinel.EPOCH] = join(subject_paradigm_dir, Sentinel.EPOCH.value)
+    subject_filenames_dict[Sentinel.SENSORS_TFR] = join(subject_paradigm_dir, Sentinel.SENSORS_TFR.value)
 
-    subjects_filenames_dicts[subject]['epochs_sensor_subdir'] = join(subjects_filenames_dicts[subject]['epochs_subdir'], 'sensor_space')
-    subjects_filenames_dicts[subject]['preproc_plots_subdir'] = join(subjects_filenames_dicts[subject]['preproc_subdir'], 'plots')
+    subject_filenames_dict['epochs_subdir'] = join(subject_paradigm_dir, 'visit_date', 'epoched')
+    subject_filenames_dict['preproc_subdir'] = join(subject_paradigm_dir, 'visit_date', 'preprocessing')
 
-    subjects_filenames_dicts[subject]['raw_paradigm'] = f'{subject}_{paradigm}*_raw.fif'
-    subjects_filenames_dicts[subject]['sss_paradigm'] = '_'.join((subject_paradigm_tag, 'date_sss_raw.fif'))
+    subject_filenames_dict['epochs_sensor_subdir'] = join(subject_filenames_dict['epochs_subdir'], 'sensor_space')
+    subject_filenames_dict['preproc_plots_subdir'] = join(subject_filenames_dict['preproc_subdir'], 'plots')
 
-    subjects_filenames_dicts[subject]['meg_bads'] = '_'.join((subject_paradigm_tag, 'bad_channels_meg.txt'))
-    subjects_filenames_dicts[subject]['eeg_bads'] = '_'.join((subject_paradigm_tag, 'bad_channels_eeg.txt'))
+    subject_filenames_dict['raw_paradigm'] = f'{subject}_{paradigm}*_raw.fif'
+    subject_filenames_dict['sss_paradigm'] = '_'.join((subject_paradigm_tag, 'date_sss_raw.fif'))
 
-    subjects_filenames_dicts[subject]['head_origin'] = '_'.join((subject_paradigm_tag, 'head_origin_coordinates.txt'))
-    subjects_filenames_dicts[subject]['head_pos'] = '_'.join((subject_paradigm_tag, 'head_position.txt'))
+    subject_filenames_dict['meg_bads'] = '_'.join((subject_paradigm_tag, 'bad_channels_meg.txt'))
+    subject_filenames_dict['eeg_bads'] = '_'.join((subject_paradigm_tag, 'bad_channels_eeg.txt'))
 
-    subjects_filenames_dicts[subject]['raw_erm'] = f'{subject}_erm_*raw.fif'
-    subjects_filenames_dicts[subject]['sss_erm'] = '_'.join((subject_paradigm_tag, 'erm_date_sss_raw.fif'))
+    subject_filenames_dict['head_origin'] = '_'.join((subject_paradigm_tag, 'head_origin_coordinates.txt'))
+    subject_filenames_dict['head_pos'] = '_'.join((subject_paradigm_tag, 'head_position.txt'))
 
-    subjects_filenames_dicts[subject]['proj'] = '_'.join((subject_paradigm_tag, proj_ext))
-    subjects_filenames_dicts[subject]['ssp_topo'] = '_'.join((subject_paradigm_tag, ssp_topo_ext))
+    subject_filenames_dict['raw_erm'] = f'{subject}_erm_*raw.fif'
+    subject_filenames_dict['sss_erm'] = '_'.join((subject_paradigm_tag, 'erm_date_sss_raw.fif'))
 
-    subjects_filenames_dicts[subject]['filt_paradigm'] = '_'.join((subject_paradigm_tag, filt_ext))
+    subject_filenames_dict['proj'] = '_'.join((subject_paradigm_tag, proj_ext))
+    subject_filenames_dict['ssp_topo'] = '_'.join((subject_paradigm_tag, ssp_topo_ext))
 
-    subjects_filenames_dicts[subject]['epoch'] = '_'.join((subject_paradigm_tag, epoch_ext))
-    subjects_filenames_dicts[subject]['sensor_tfr'] = '_'.join((subject_paradigm_tag, sensor_tfr_ext))
+    subject_filenames_dict['filt_paradigm'] = '_'.join((subject_paradigm_tag, filt_ext))
 
-    subjects_filenames_dicts[subject]['sensor_tfr_plot'] = '_'.join((subject_paradigm_tag, sensor_tfr_plot_ext))
-    subjects_filenames_dicts[subject]['evoked_plot'] = '_'.join((subject_paradigm_tag, sensor_evoked_ext))
+    subject_filenames_dict['epoch'] = '_'.join((subject_paradigm_tag, epoch_ext))
+    subject_filenames_dict['sensor_tfr'] = '_'.join((subject_paradigm_tag, sensor_tfr_ext))
+
+    subject_filenames_dict['sensor_tfr_plot'] = '_'.join((subject_paradigm_tag, sensor_tfr_plot_ext))
+    subject_filenames_dict['evoked_plot'] = '_'.join((subject_paradigm_tag, sensor_evoked_ext))
+
+    return subject_filenames_dict

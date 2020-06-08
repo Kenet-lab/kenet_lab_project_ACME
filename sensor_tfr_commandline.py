@@ -4,7 +4,6 @@ sys.path.insert(0, tacr_cfg.shared_func_dir)
 import mne
 import json
 import logging
-import argparse
 import io_mod as i_o
 import analysis as anal
 from os.path import join
@@ -28,14 +27,3 @@ def main(subject, subject_fnames, log):
                                            subject_fnames['epochs_sensor_subdir'], sensor_tfr_fname)
         # plot, save TFR figure(s) that we time-window
         anal.manipulate_sensor_tfr(itc, tacr_cfg.tfr_temporal_dict, subject_fnames['epochs_sensor_subdir'], sensor_tfr_plot_fname, tacr_cfg.eeg)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-subject', type=str, help='Subject ID')
-    parser.add_argument('-log', type=str, help='Logging script file name')
-    parser.add_argument('-fnames', type=json.loads, help='Subject file naming information')
-
-    arguments = parser.parse_args()
-
-    main(arguments.subject, arguments.fnames, arguments.log)
