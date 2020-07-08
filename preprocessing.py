@@ -1,25 +1,13 @@
 import mne
 import logging
+import autoreject
 import numpy as np
-import io_mod as i_o
+import io_helpers as i_o
 import visuals as vis
 from os.path import join
 
 
-def apply_bad_channels_eeg(raw, loc, eeg_bads_fname): # read, and add bad EEG channels to raw data
-    """
-    :param raw: raw file to add marked bad EEG channels to
-    :param loc: string of location to read bad channels .txt from
-    :param eeg_bads_fname: string of subject+paradigm specific bad EEG channels filename
-    :return: raw fif with bad EEG channels added to header
-    """
-    eeg_bads = i_o.read_bad_channels_eeg(loc, eeg_bads_fname) # read the bad channels .txt file
-    logging.info(f'Adding the following bad EEG channels to {i_o.get_subject_id_from_data(raw)}:\n{eeg_bads}')
-    raw.info['bads'].extend(eeg_bads) # add the bad channels to the raw file
-    return raw
-
-
-def apply_notch_filter(raw, n_jobs, loc, eeg_bads_fname):
+def apply_notch_filter_to_eeg(raw, n_jobs, loc, eeg_bads_fname, epochs_parameters_dict):
     """
     :param raw: raw file to notch filter
     :param n_jobs: job control for speeding up computation
@@ -28,14 +16,15 @@ def apply_notch_filter(raw, n_jobs, loc, eeg_bads_fname):
     :return: notch filtered raw fif file
     """
     linefreq = raw.info['line_freq'] # notch filter line frequency
-    raw = apply_bad_channels_eeg(raw, loc, eeg_bads_fname) # add bad EEG channels
-    for harmonic_num in [1, 2, 3]: # notch filter its second and third harmonics
+    raw = find_bads_eeg(raw, epochs_parameters_dict, n_jobs, loc, eeg_bads_fname) # find and add bad EEG channels
+    for harmonic_num in [1, 2]: # notch filter its second harmonic, too
         notch_freq = linefreq * harmonic_num
         raw.notch_filter(np.arange(notch_freq, 241, notch_freq), picks=['eeg'], n_jobs=n_jobs)
     return raw
 
 
-def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname):
+def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname,
+                  epochs_parameters_dict, save=True):
     """
     :param raw: signal to bandpass filter
     :param l_freq: lower cutoff frequency
@@ -48,10 +37,11 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc_eeg, eeg_bads_fname
     :param signal_fname: string of filename for the bandpass filtered signal
     :return: bandpass filtered signal
     """
-    raw.load_data()
-    raw = apply_notch_filter(raw, n_jobs, save_loc_eeg, eeg_bads_fname) if eeg and raw.__contains__('eeg') else raw
+    if eeg and raw.__contains__('eeg'):
+        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
     raw.filter(l_freq=l_freq, h_freq=h_freq, n_jobs=n_jobs) # filter the signal accordingly
-    raw.save(join(save_loc_signal, signal_fname))
+    if save:
+        raw.save(join(save_loc_signal, signal_fname))
     return raw
 
 
@@ -69,38 +59,47 @@ def generate_head_origin(info, subject_meg_dir, head_origin_fname): # calculate,
     return head_origin
 
 
-def ssp_exg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
+def ssp_exg(raw, ssp_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
     """
     :param raw: raw file to remove artifacts from
-    :param ssp_params_dict: dictionary containing relevant SSP parameters
+    :param ssp_dict: dictionary whose keys: 'params' parameters dictionary, 'frontal_channels' list of frontal channels
     :param n_jobs: job control for speeding up computation
     :param proj_fname: string of filename to save projections
     :param ssp_topo_pattern: string of filename to save plot topographies of projections
     :return: signal with ExG projections applied
     perform artifact detection and removal via SSP on ECG, EOG channels
     """
-    raw = ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
-    try: # try to remove ocular artifacts, can fail if no EOG channels are found
-        raw = ssp_eog(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
-    except IndexError:
-        logging.error('No EOG channels found') # build handling of the scenario where EOG channels are not found
-        # or: EOG channels were marked as bad
+    raw = ssp_ecg(raw, ssp_dict['params'], n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
+    # EOG handling
+    if raw.__contains__('eog'): # use EOG channels as a first pass if they exist
+        raw, blink_projs = ssp_eog(raw, ssp_dict['params'], n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern,
+                                   plot_save_loc)
+
+    if not blink_projs: # use frontal channels if poor EOG channel or no EOG channel at all
+        for frontals_list in ssp_dict['frontal_channels']: # loop through frontal channels options list
+            if not raw.__contains__('eeg') and 'EEG' in frontals_list:
+                continue
+            chs_to_use = ','.join(list(set(frontals_list.split(',')).difference(set(raw.info['bads']))))  # don't want bad frontals
+            raw, blink_projs = ssp_eog(raw, ssp_dict['params'], chs_to_use, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
+            if not blink_projs:
+                continue # move to next frontals channels list
+
     return raw
 
 
-def ssp_eog(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
-    # remove eye blinks via SSP, save projections and figure
-    blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params_dict, n_jobs=n_jobs)
+def ssp_eog(raw, ssp_params_dict, ch_name, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
+    # detect eye blinks via SSP, save projections and topography figure
+    blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params_dict, ch_name=ch_name, n_jobs=n_jobs)
     if blink_projs:
         raw.add_proj(blink_projs)
         i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
         vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
-    i_o.log_projs(blink_projs, 'EOG')
-    return raw
+    i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
+    return raw, blink_projs
 
 
 def ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
-    # remove heartbeats via SSP, save projections and figure
+    # detect heartbeats via SSP, save projections and topography figure
     qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params_dict, n_jobs=n_jobs)
     if qrs_projs:
         raw.add_proj(qrs_projs)
@@ -110,22 +109,18 @@ def ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pa
     return raw
 
 
-def generate_epochs(raw, events_baseline, conditions_dicts, epochs_parameters_dict,
-                    save_loc, epoch_pattern, proc_using_baseline):
+def generate_epochs(raw, events, conditions_dicts, epochs_parameters_dict,
+                    save_loc, epoch_pattern):
     """
     :param raw: raw file to create epochs from
+    :param events: numpy array containing events over time
     :param conditions_dicts: dictionary of dictionaries detailing various conditon names, and their event IDs
     :param epochs_parameters_dict: dictionary of epoching parameters
-    :param proc_using_baseline: bool stating to either use a noise covariance from baseline or ERM
     """
-    if not proc_using_baseline: # create epochs for all conditions...
-        logging.info('Skipping baseline calculation...')
-        conditions_dicts.pop('baseline') # remove baseline condition key from conditions dictionary
-
     for condition_name, condition_info in conditions_dicts.items(): # loop through each condition
         condition_event_id = condition_info['event_id'] # event identifiers to epoch around
         epochs_parameters_dict.update({'event_id': condition_event_id})
-        epochs = mne.Epochs(raw, events_baseline, **epochs_parameters_dict) # calculate the epochs
+        epochs = mne.Epochs(raw, events, **epochs_parameters_dict) # calculate the epochs
         i_o.log_epochs(epochs)
         i_o.save_epochs(epochs, condition_name, save_loc, epoch_pattern) # save the epochs accordingly
     return epochs
@@ -153,32 +148,53 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
     :return: raw file with bad MEG channels added to its header, as well as the bad channels detected
     """
     lp = 40.
-    raw_copy = raw.copy().load_data().filter(None, lp, n_jobs=n_jobs) # recommended to filter below 40 Hz prior to detection
+    raw_copy = raw.copy().filter(None, lp, n_jobs=n_jobs) # recommended to filter below 40 Hz prior to detection
     for key in ['st_correlation', 'destination', 'st_duration']:
         sss_params.pop(key) # remove un-needed arguments from parameters dictionary
     noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw_copy, **sss_params) # find the bad channels
     del raw_copy
     bads = noisy + flat
-    np.savetxt(join(subject_preproc_dir, meg_bads_fname), bads) # save the bad channels
-    raw.info['bads'].extend(bads) # add the bad channels to the raw fif
+    i_o.save_bad_channels(raw, bads, subject_preproc_dir, meg_bads_fname) # save accordingly
+    return bads
+
+
+def find_bads_eeg(raw, epochs_parameters_dict, n_jobs, subject_preproc_dir, eeg_bads_fname):
+
+    events, events_differential_corrected = i_o.find_events(raw, stim_channel='STI101')
+    eeg_data = raw.copy().pick_types(meg=False, eeg=True)
+
+    eeg_epochs = mne.Epochs(eeg_data, events, tmin=epochs_parameters_dict['tmin'], tmax=epochs_parameters_dict['tmax'],
+                            baseline=epochs_parameters_dict['baseline'], proj=False, reject=None, detrend=0, preload=True)
+
+    picks = mne.pick_types(eeg_epochs.info, meg=False, eeg=True)
+
+    ransac = autoreject.Ransac(unbroken_time=0.3, picks=picks, n_jobs=n_jobs)
+    ransac.fit(eeg_epochs)
+
+    bads = ransac.bad_chs_
+    raw.info['bads'].extend(bads)
+    i_o.save_bad_channels(raw, bads, subject_preproc_dir, eeg_bads_fname) # save accordingly
     return raw, bads
 
 
-def mne_maxwell_filter_paradigm(raw, sss_params, subject_preproc_dir, subject_sss_fname):
+def mne_maxwell_filter_paradigm(raw, sss_params, subject_preproc_dir, subject_sss_fname, save):
     """
     perform SSS on a non-ERM signal
     :param sss_params: dictionary containing relevant SSS/maxwell filtering parameters
+    :param save: boolean for saving the SSS'd signal
     :return: SSS'd signal
     """
     sss = mne.preprocessing.maxwell_filter(raw, **sss_params)
-    sss.save(join(subject_preproc_dir, subject_sss_fname)) # save the SSS'd file
+    if save:
+        sss.save(join(subject_preproc_dir, subject_sss_fname)) # save the SSS'd file
     return sss
 
 
-def mne_maxwell_filter_erm(raw_erm, bads, sss_params, subject_preproc_dir, subject_erm_sss_fname):
+def mne_maxwell_filter_erm(raw_erm, bads_list, sss_params, subject_preproc_dir, subject_erm_sss_fname, save=True):
     """
     perform SSS on ERM data - used for noise covariance matrices later during MRI processing
     :param raw: raw ERM file
+    :param bads_list: list of lists of strings containing automatically detected bad MEG channels
     :param sss_params: dictionary containing relevant SSS/maxwell filtering parameters
     :return: SSS'd ERM file
     """
@@ -187,98 +203,12 @@ def mne_maxwell_filter_erm(raw_erm, bads, sss_params, subject_preproc_dir, subje
         sss_params[key] = None # no need to perform movement compensation
     sss_params['coord_frame'] = 'meg'
     sss_params['origin'] = 'auto'
-    raw_erm.info['bads'].extend(bads) # add bad channels to ERM fif header
+
+    bads_list_flattened = [bad_ch for bads_sublist in bads_list for bad_ch in bads_sublist] # flatten the list of lists
+    bads_unique = list(set(bads_list_flattened)) # remove duplicate channels that were auto-detected
+
+    raw_erm.info['bads'].extend(bads_unique) # add bad channels to ERM fif header
     erm_sss = mne.preprocessing.maxwell_filter(raw_erm, **sss_params)
-    erm_sss.save(join(subject_preproc_dir, subject_erm_sss_fname))
+    if save:
+        erm_sss.save(join(subject_preproc_dir, subject_erm_sss_fname))
     return erm_sss
-
-
-
-
-
-
-
-
-
-
-# below is ICA infrastructure, definitely a work in progress...
-"""
-def initialize_ICA(raw, ch_type, reject, ica_params_dict, save_loc, subject):
-    # initialize, fit, save ICA
-    # *** seems like A LOT of parameters, could maybe pass less through use of defaults/keyword args
-    n_components = ica_params_dict['n_components']
-    fit_method = ica_params_dict['fit_method']
-    random_state = ica_params_dict['random_state']
-    ica = mne.preprocessing.ICA(n_components=n_components, method=fit_method, random_state=random_state)
-    if ch_type == 'EEG':
-        ica_picks = mne.pick_types(raw.info, meg=False, eeg=True, eog=True, ecg=True, stim=True, exclude='bads')
-    elif ch_type == 'MEG':
-        ica_picks = mne.pick_types(raw.info, meg=True, eeg=False, eog=True, ecg=True, stim=True)
-    else:
-        ica_picks = mne.pick_types(raw.info, meg=True, eeg=True, eog=True, ecg=True, stim=True, exclude='bads')
-    ica.fit(raw, picks=ica_picks, reject=reject, decim=11)
-    ica.exclude = []
-    ica_fname = '{}_{}-ica.fif'.format(subject, ch_type)
-    save_ica(ica, save_loc, ica_fname) # always save ICA model
-    return ica
-
-
-def ica_find_bads_eog(raw, ica, ch_type, save_loc, subject, save_ica_plot):
-    id = 'EOG'
-    eog_epochs = mne.preprocessing.create_eog_epochs(raw)
-    eog_inds, eog_scores = ica.find_bads_eog(eog_epochs)
-    if save_ica_plot and eog_inds:
-        # make topography map figure
-        make_topomap_ica(ica, eog_inds, ch_type, save_loc, subject, id)
-        ica.exclude.extend(eog_inds)
-    if save_ica_plot:
-        # make scores figure
-        plot_scores_ica(ica, eog_scores, ch_type, save_loc, subject, id)
-    return ica
-
-
-def ica_find_bads_ecg(raw, ica, ch_type, save_loc, subject, save_ica_plot):
-    id = 'ECG'
-    ecg_epochs = mne.preprocessing.create_ecg_epochs(raw)
-    ecg_inds, ecg_scores = ica.find_bads_ecg(ecg_epochs)
-    if save_ica_plot and ecg_inds:
-        # make topography map figure
-        make_topomap_ica(ica, ecg_inds, ch_type, save_loc, subject, id)
-        ica.exclude.extend(ecg_inds)
-    if save_ica_plot:
-        # make scores figure
-        plot_scores_ica(ica, ecg_scores, ch_type, save_loc, subject, id)
-    return ica
-
-
-def ica_find_bads_exg(raw, ica, ch_type, save_ica_plot, save_loc, subject):
-    ica = ica_find_bads_eog(raw, ica, save_ica_plot, save_loc)
-    ica = ica_find_bads_ecg(raw, ica, save_ica_plot, save_loc)
-    if save_ica_plot:
-        plot_sources_ica(raw, ica, ch_type, save_loc, subject)
-    return
-    
-outdated maxwell filtering code...
-def maxwell_filter_paradigm(subject, raw_in, sss_out, coords, bads):
-    # pass multiple arguments to a shell script for maxwell filtering via Elekta software
-    cmd = './maxshell_wrapper.sh {} {} {} {} {} {} {} {}'.format(subject,
-                                                                 raw_in, sss_out,
-                                                                 coords[0], coords[1], coords[2],
-                                                                 bads)
-    logging.info('Adding the following bad channels (MEG) to {}:\n{}'.format(subject, bads))
-    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-    out, err = proc.communicate()
-    return out, err
-
-
-def maxwell_filter_erm(subject, date, raw_in, sss_out, bads):
-    # pass multiple arguments to a shell script for maxwell filtering via Elekta software
-    cmd = './erm_maxshell.sh {} {} {} {} {}'.format(subject, date,
-                                                    raw_in, sss_out, bads)
-    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-    out, err = proc.communicate()
-    return out, err
-"""
-

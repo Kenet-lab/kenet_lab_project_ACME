@@ -1,78 +1,49 @@
 import os
-import sys
-from pathlib import Path
-
-import io_mod as i_o
 import filenaming_config as fname_cfg
-import paradigm_config_mod as paradigm_cfg
-from mne_maxwell_commandline import main as MNE_MAX_main
-from epochs_mod_commandline import main as EPO_main
-from sensor_tfr_commandline import main as SENSORS_TFR_main
-
-# DPK - why do you need this?  Is this preferable to the PYTHONPATH
-#       environment variable?
-sys.path.insert(0, paradigm_cfg.shared_func_dir)
+import paradigm_config as paradigm_cfg
+from mnepy_sss import main as maxwell_main
+from epoching import main as epochs_main
+from sensor_space_analysis import main as sensor_tfr_main
+from pathlib import Path
 
 
 def subject_unprocessed(subject_filenaming_dict, stage):
-    """True if the subject has not been successfully processed."""
+    """ true if the subject has not been successfully processed """
     return (not os.path.isfile(subject_filenaming_dict[stage]))
 
 
-def markSuccessfulStage(stage):
-    """Produce a sentinal file to indicate successful completion of a stage."""
+def mark_successful_stage(stage):
+    """ produce a sentinel file to indicate successful completion of a stage"""
     Path.touch(stage)
 
 
-def runIfNeeded(function, stage, subject, subject_filenaming_dict, log_name,
-                override=False):
-    """Runs the supplied script if necessary."""
+def run_if_needed(function, stage, subject, subject_filenaming_dict, log_name, override=False):
+    """ runs the supplied script if necessary"""
     if override or subject_unprocessed(subject_filenaming_dict, stage):
         function(subject, subject_filenaming_dict, log_name)
-        markSuccessfulStage(stage)
+        mark_successful_stage(stage)
 
 
-def runSubject(subject, subject_filenaming_dict):
-    "Process a single subject."
-
+def run_subject(subject, subject_filenaming_dict):
+    """ process a single subject"""
     # maxwell filtering script
-    runIfNeeded(
-        MNE_MAX_main,
-        fname_cfg.Sentinel.MAXWELL,
-        subject,
-        subject_filenaming_dict,
-        fname_cfg.maxwell_script_log_name,
-        override=False,
-    )
-
-    # further preprocessing + epoch script
-    runIfNeeded(
-        EPO_main,
-        fname_cfg.Sentinel.EPOCH,
-        subject,
-        subject_filenaming_dict,
-        fname_cfg.epoched_script_log_name,
-        override=False,
-    )
-
+    run_if_needed(maxwell_main, fname_cfg.Sentinel.MAXWELL, subject, subject_filenaming_dict,
+                  fname_cfg.maxwell_script_log_name, override=False)
+    # further preprocessing and epochs script
+    run_if_needed(epochs_main, fname_cfg.Sentinel.EPOCH, subject, subject_filenaming_dict,
+                  fname_cfg.epoched_script_log_name, override=False)
     # sensor space script
-    runIfNeeded(
-        SENSORS_TFR_main,
-        fname_cfg.Sentinel.SENSORS_TFR,
-        subject,
-        subject_filenaming_dict,
-        fname_cfg.sensor_space_script_log_name,
-        override=False,
-    )
+    run_if_needed(sensor_tfr_main, fname_cfg.Sentinel.SENSORS_TFR, subject, subject_filenaming_dict,
+                  fname_cfg.sensor_space_script_log_name, override=False)
 
 
-def runSubjects():
-    "Process all subjects in the paradigm directory."
-    for subject in i_o.get_subject_ids(i_o.get_subjects()):
-        subject_filename_dict = fname_cfg.create_paradigm_subjects_mapping(
-            subject)
-        runSubject(subject, subject_filename_dict)
+def run_subjects():
+    """ process all subjects in the paradigm directory"""
+    for subject in os.listdir(paradigm_cfg.paradigm_dir):
+        if subject.isnumeric():
+            subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject)
+            run_subject(subject, subject_filename_dict)
 
 
 if __name__ == "__main__":
-    runSubjects()
+    run_subjects()
