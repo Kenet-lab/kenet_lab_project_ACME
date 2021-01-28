@@ -23,7 +23,7 @@ def apply_notch_filter_to_eeg(raw, n_jobs, loc, eeg_bads_fname, epochs_parameter
     return raw
 
 
-def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname,
+def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname,
                   epochs_parameters_dict, save=True):
     """
     :param raw: signal to bandpass filter
@@ -37,9 +37,11 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, eeg, save_loc_eeg, eeg_bads_fname
     :param signal_fname: string of filename for the bandpass filtered signal
     :return: bandpass filtered signal
     """
-    if eeg and raw.__contains__('eeg'):
-        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
     raw.filter(l_freq=l_freq, h_freq=h_freq, n_jobs=n_jobs) # filter the signal accordingly
+    if raw.__contains__('eeg'):
+        raw.set_montage('mgh70') # import correct cap layout
+        raw.set_eeg_reference(ref_channels='average') # apply average reference
+        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
     if save:
         raw.save(join(save_loc_signal, signal_fname))
     return raw
@@ -83,7 +85,7 @@ def ssp_exg(raw, ssp_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, 
             raw, blink_projs = ssp_eog(raw, ssp_dict['params'], chs_to_use, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
             if not blink_projs:
                 continue # move to next frontals channels list
-
+    raw.apply_proj() # clean the data
     return raw
 
 
@@ -117,13 +119,14 @@ def generate_epochs(raw, events, conditions_dicts, epochs_parameters_dict,
     :param conditions_dicts: dictionary of dictionaries detailing various conditon names, and their event IDs
     :param epochs_parameters_dict: dictionary of epoching parameters
     """
+    if not raw.__contains__('eeg'):
+        del epochs_parameters_dict['reject']['eeg']
     for condition_name, condition_info in conditions_dicts.items(): # loop through each condition
         condition_event_id = condition_info['event_id'] # event identifiers to epoch around
         epochs_parameters_dict.update({'event_id': condition_event_id})
         epochs = mne.Epochs(raw, events, **epochs_parameters_dict) # calculate the epochs
         i_o.log_epochs(epochs)
         i_o.save_epochs(epochs, condition_name, save_loc, epoch_pattern) # save the epochs accordingly
-    return epochs
 
 
 def calc_head_position(raw, save_loc, fname):
@@ -147,12 +150,9 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
     :param sss_params: dictionary containing relevant SSS/maxwell filtering parameters
     :return: raw file with bad MEG channels added to its header, as well as the bad channels detected
     """
-    lp = 40.
-    raw_copy = raw.copy().filter(None, lp, n_jobs=n_jobs) # recommended to filter below 40 Hz prior to detection
     for key in ['st_correlation', 'destination', 'st_duration']:
         sss_params.pop(key) # remove un-needed arguments from parameters dictionary
-    noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw_copy, **sss_params) # find the bad channels
-    del raw_copy
+    noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw, **sss_params) # find the bad channels
     bads = noisy + flat
     i_o.save_bad_channels(raw, bads, subject_preproc_dir, meg_bads_fname) # save accordingly
     return bads
@@ -164,7 +164,7 @@ def find_bads_eeg(raw, epochs_parameters_dict, n_jobs, subject_preproc_dir, eeg_
     eeg_data = raw.copy().pick_types(meg=False, eeg=True)
 
     eeg_epochs = mne.Epochs(eeg_data, events, tmin=epochs_parameters_dict['tmin'], tmax=epochs_parameters_dict['tmax'],
-                            baseline=epochs_parameters_dict['baseline'], proj=False, reject=None, detrend=0, preload=True)
+                            baseline=epochs_parameters_dict['baseline'], proj=False, reject=None, preload=True)
 
     picks = mne.pick_types(eeg_epochs.info, meg=False, eeg=True)
 
