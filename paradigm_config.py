@@ -35,8 +35,10 @@ l_freq = 0.1
 h_freq = 144.
 
 # merged/specified/grouped event IDs, conditions
-conditions_dicts = {'25Hz': {'event_id': [1], # key <-> condition name
-                            'value': 25.}, # value <-> condition's information (nested dictionary)
+# key <-> condition name
+# value <-> condition's information (nested dictionary)
+conditions_dicts = {'25Hz': {'event_id': [1],
+                            'value': 25.},
                     'baseline': {'event_id': None,
                                  'value': None}}
 
@@ -48,7 +50,7 @@ preproc_ica = False if preproc_ssp else True # eventually add infrastructure to 
 epoch_tmin = -0.2
 epoch_tmax = 1.3
 
-epoch_dur = epoch_tmax * 1000.
+epoch_dur = (epoch_tmax - epoch_tmin) * 1000.
 epoch_baseline = (epoch_tmin, 0.)
 epoch_proj = True if preproc_ssp else False
 

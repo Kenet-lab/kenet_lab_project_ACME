@@ -41,14 +41,19 @@ def get_subject_id_from_data(data):
     return data.info['subject_info']['his_id']
 
 
-def find_events(raw, stim_channel):
+def find_events(raw, stim_channel, paradigm, event_duration):
     """
     :param raw: raw file whose info to parse
     :param stim_channel: string stimulus channel name
+    :param paradigm: string denoting what paradigm events are being found for
+    :param event_duration: time in seconds to separate events by
     :return: events
     :return: events baseline
     """
-    events = mne.find_events(raw, stim_channel=stim_channel, shortest_event=1)
+    if paradigm in ['fix', 'fixation', 'RestingState', 'EyesClosed', 'EyesOpen']:
+        events = mne.make_fixed_length_events(raw, duration=event_duration)
+    else:
+        events = mne.find_events(raw, stim_channel=stim_channel, shortest_event=1)
     # shortest event -> the minimum number of samples an event must last
     events_differential_corrected = differentiate_superimposed_events(events)
     return events, events_differential_corrected
