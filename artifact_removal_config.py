@@ -3,7 +3,7 @@ Artifact removal configuration file
 Holds parameters used in SSP and ICA methods to remove eye blinks and heart beats
 """
 from os.path import join
-import paradigm_config_mod as para_cfg
+import paradigm_config as para_cfg
 
 # SSP parameters
 n_grad_ssp = 2

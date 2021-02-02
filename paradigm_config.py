@@ -18,13 +18,12 @@ shared_func_dir = join(transcend_dir, 'scripts')
 n_jobs = max(cpu_count() - 4, 1)
 
 ### MID LEVEL ### paradigm-relevant parameters, variables...
-paradigm = 'tac_vib_only'
+paradigm = 'paradigm'
 paradigm_dir = join(meg_dir, paradigm)
 paradigm_vars_output_filename = f'{paradigm}_paradigm_config_variables_output_{current_datetime}.txt'
 
 reports_dir = join(paradigm_dir, 'reports')
 
-eeg = True
 
 # noise covariance matrix, inverse computation done by using either baseline period or ERM
 proc_using_baseline = False
@@ -57,12 +56,11 @@ grad_epoch_reject = 5000e-13
 mag_epoch_reject = 4e-12
 eeg_epoch_reject = 500e-6
 
-epoch_reject_no_eeg = dict(grad=grad_epoch_reject, mag=mag_epoch_reject)
-epoch_reject_eeg = dict(grad=grad_epoch_reject, mag=mag_epoch_reject, eeg=eeg_epoch_reject)
+epoch_reject = dict(grad=grad_epoch_reject, mag=mag_epoch_reject, eeg=eeg_epoch_reject)
 
 epochs_parameters_dict = {'tmin': epoch_tmin, 'tmax': epoch_tmax,
                           'baseline': epoch_baseline, 'proj': epoch_proj,
-                          'reject': epoch_reject_eeg if eeg else epoch_reject_no_eeg}
+                          'reject': epoch_reject}
 
 # parameters dictionary for windowing power/ITC, include modes like 'mean', 'max'...
 freqs = arange(7, 99, 2) # frequencies of interest

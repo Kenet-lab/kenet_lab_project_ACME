@@ -1,6 +1,6 @@
 from enum import Enum
-import paradigm_config_mod as para_cfg
-import io_mod as i_o
+import paradigm_config as para_cfg
+import io_helpers as i_o
 from os.path import join
 
 
