@@ -61,6 +61,14 @@ def make_report_sensor_space(subject, condition_name, fig_save_loc, fig_save_nam
     return
 
 
+
+
+
+
+
+
+
+
 def plot_coreg_alignment(info, trans, subject, subjects_dir, save_loc, save_name):
     fig_alignment = mne.viz.plot_alignment(info, trans, subject=subject,
                                            dig=True, meg=['helmet', 'sensors'],

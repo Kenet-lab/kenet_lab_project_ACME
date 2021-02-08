@@ -72,9 +72,7 @@ n_cycles[freqs < 15] = 2
 # sensor power/ITC windowing parameters
 tfr_t_start = 0.3
 tfr_t_end = 1.0
-tfr_sliding = False
-tfr_temporal_dict = {'t_start':tfr_t_start, 't_end': tfr_t_end,
-                     'sliding': tfr_sliding} # if True, supply additional parameters
+tfr_temporal_dict = {'t_start':tfr_t_start, 't_end': tfr_t_end}
 
 sensor_report_fname = f'sensor_space_{paradigm}_{current_datetime}_report.h5' # sensor space report filename
 
