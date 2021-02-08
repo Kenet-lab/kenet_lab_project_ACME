@@ -64,51 +64,70 @@ def generate_head_origin(info, subject_meg_dir, head_origin_fname): # calculate,
 def ssp_exg(raw, ssp_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
     """
     :param raw: raw file to remove artifacts from
-    :param ssp_dict: dictionary whose keys: 'params' parameters dictionary, 'frontal_channels' list of frontal channels
+    :param ssp_dict: dictionary whose keys: 'params' parameters dictionary,
     :param n_jobs: job control for speeding up computation
     :param proj_fname: string of filename to save projections
     :param ssp_topo_pattern: string of filename to save plot topographies of projections
     :return: signal with ExG projections applied
     perform artifact detection and removal via SSP on ECG, EOG channels
     """
-    raw = ssp_ecg(raw, ssp_dict['params'], n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
-    # EOG handling
-    if raw.__contains__('eog'): # use EOG channels as a first pass if they exist
-        raw, blink_projs = ssp_eog(raw, ssp_dict['params'], n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern,
-                                   plot_save_loc)
+    ecg_fab_channels_all = ssp_dict['ecg_fab_channels']
+    eog_fab_channels_all = ssp_dict['eog_fab_channels']
+    # make sure fabrication channels are not bad channels
+    ecg_fab_channels_usable = [ecg_fch for ecg_fch in ecg_fab_channels_all if ecg_fch not in raw.info['bads']]
+    eog_fab_channels_usable = [eog_fch for eog_fch in eog_fab_channels_all if eog_fch not in raw.info['bads']]
 
-    if not blink_projs: # use frontal channels if poor EOG channel or no EOG channel at all
-        for frontals_list in ssp_dict['frontal_channels']: # loop through frontal channels options list
-            if not raw.__contains__('eeg') and 'EEG' in frontals_list:
-                continue
-            chs_to_use = ','.join(list(set(frontals_list.split(',')).difference(set(raw.info['bads']))))  # don't want bad frontals
-            raw, blink_projs = ssp_eog(raw, ssp_dict['params'], chs_to_use, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc)
-            if not blink_projs:
-                continue # move to next frontals channels list
+    qrs_projs = ssp_ecg(raw, ssp_dict['params'], ecg_fab_channels_usable, n_jobs, proj_fname, proj_save_loc,
+                        ssp_topo_pattern, plot_save_loc)
+    blink_projs = ssp_eog(raw, ssp_dict['params'], eog_fab_channels_usable, n_jobs, proj_fname, proj_save_loc,
+                          ssp_topo_pattern, plot_save_loc)
+
+    raw.add_proj(qrs_projs + blink_projs) # add the projections to the signal
     raw.apply_proj() # clean the data
     return raw
 
-
-def ssp_eog(raw, ssp_params_dict, ch_name, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
-    # detect eye blinks via SSP, save projections and topography figure
-    blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params_dict, ch_name=ch_name, n_jobs=n_jobs)
-    if blink_projs:
-        raw.add_proj(blink_projs)
-        i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
-        vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
-    i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
-    return raw, blink_projs
-
-
-def ssp_ecg(raw, ssp_params_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
+def ssp_ecg(raw, ssp_params, ecg_fab_channels, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
     # detect heartbeats via SSP, save projections and topography figure
-    qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params_dict, n_jobs=n_jobs)
-    if qrs_projs:
-        raw.add_proj(qrs_projs)
-        i_o.save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
-        vis.make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
+    if not raw.__contains__('ecg'): # use MEG channels to detect heartbeats
+        qrs_projs = find_ecg_artifacts_without_ecg_channel(raw, ssp_params, ecg_fab_channels, n_jobs)
+    else:
+        qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params, n_jobs=n_jobs)
+
+    i_o.save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
+    vis.make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
     i_o.log_projs(qrs_projs, 'ECG')
-    return raw
+    return qrs_projs
+
+def find_ecg_artifacts_without_ecg_channel(raw, ssp_params, ecg_fab_channels, n_jobs):
+    for channel in ecg_fab_channels:
+        qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params, n_jobs=n_jobs, ch_name=channel)
+        if qrs_projs:
+            break
+    return qrs_projs
+
+def ssp_eog(raw, ssp_params, eog_fab_channels, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, plot_save_loc):
+    # detect eye blinks via SSP, save projections and topography figure
+    if not raw.__contains__('eog'): # use EEG or MEG channels to detect eye blinks
+        blink_projs = find_eog_artifacts_without_eog_channel(raw, ssp_params, eog_fab_channels, n_jobs)
+    else:
+        blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params, n_jobs=n_jobs)
+
+    i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
+    vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
+    i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
+    return blink_projs
+
+def find_eog_artifacts_without_eog_channel(raw, ssp_params, eog_fab_channels, n_jobs):
+    if raw.__contains__('eeg'):
+        eog_fab_channels_available = eog_fab_channels
+    else:
+        eog_fab_channels_available = [eog_fch_avail for eog_fch_avail in eog_fab_channels if 'EEG' not in eog_fch_avail]
+
+    for channel in eog_fab_channels_available:
+        blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params, n_jobs=n_jobs, ch_name=channel)
+        if blink_projs:
+            break
+    return blink_projs
 
 
 def generate_epochs(raw, events, conditions_dicts, epochs_parameters_dict,
@@ -174,7 +193,7 @@ def find_bads_eeg(raw, epochs_parameters_dict, n_jobs, subject_preproc_dir, eeg_
     bads = ransac.bad_chs_
     raw.info['bads'].extend(bads)
     i_o.save_bad_channels(raw, bads, subject_preproc_dir, eeg_bads_fname) # save accordingly
-    return raw, bads
+    return raw
 
 
 def mne_maxwell_filter_paradigm(raw, sss_params, subject_preproc_dir, subject_sss_fname, save):

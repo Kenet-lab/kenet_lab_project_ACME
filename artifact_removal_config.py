@@ -10,14 +10,13 @@ n_grad_ssp = 2
 n_mag_ssp = 2
 n_eeg_ssp = 1
 average_ssp = True
+# in the case of missing ExG electrodes/channels, supply MEEG channels to detect artifacts
+ecg_fab_chs = ['MEG1531', 'MEG2631', 'MEG1541', 'MEG2621']
+eog_fab_chs = ['EEG001', 'EEG002', 'EEG003', 'EEG005', 'EEG006', 'EEG007', 'EEG008',
+               'MEG1213', 'MEG1422']
 
-frontal_channels_many = ['MEG0111', 'MEG0121', 'MEG0131', 'MEG0211', 'MEG0221', 'MEG0231',
-                        'MEG0311', 'MEG0321', 'MEG0331', 'MEG1511', 'MEG1521', 'MEG1531',
-                        'EEG001', 'EEG002', 'EEG003', 'EEG004', 'EEG005', 'EEG006', 'EEG007', 'EEG008', 'EEG061', 'EEG062']
-
-frontal_channels = ['EEG061,EEG062', 'EEG001,EEG002', 'MEG0122,MEG1412', 'MEG0313,MEG1213']
 ssp_params_dict = {'n_grad': n_grad_ssp, 'n_mag': n_mag_ssp, 'n_eeg': n_eeg_ssp, 'average': average_ssp}
-ssp_dict = {'params': ssp_params_dict, 'frontal_channels': frontal_channels}
+ssp_dict = {'params': ssp_params_dict, 'ecg_fab_channels': ecg_fab_chs, 'eog_fab_channels': eog_fab_chs}
 
 # ICA parameters
 n_comps_ica = 0.999
