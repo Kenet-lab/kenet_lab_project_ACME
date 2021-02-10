@@ -27,10 +27,14 @@ ssp_topo_ext = proj_ext.replace('.fif', '_topomap.png')
 
 filt_ext = '_'.join((f'{para_cfg.l_freq}hp_{para_cfg.h_freq}lp', sss_ext))
 epoch_ext = filt_ext.replace('raw_sss', f'raw_sss_condition_{int(para_cfg.epoch_dur)}ms-epo')
+evoked_ext = epoch_ext.replace('epo', 'ave')
 
 sensor_evoked_ext = epoch_ext.replace('epo.fif', 'evoked_filler.png')
 sensor_tfr_ext = epoch_ext.replace('epo.fif', 'tfr_kind-tfr.h5')
+sensor_psd_ext = epoch_ext.replace('epo.fif', 'CH_TYPE_psd.npy')
+
 sensor_tfr_plot_ext = sensor_tfr_ext.replace('-tfr.h5', '_filler.png')
+sensor_psd_plot_ext = sensor_psd_ext.replace('npy', 'png')
 
 inv_ext = epoch_ext.replace('epo', 'inv')
 
@@ -87,9 +91,12 @@ def create_paradigm_subject_mapping(subject):
     subject_filenames_dict['filt_paradigm'] = '_'.join((subject_paradigm_date_tag, filt_ext))
 
     subject_filenames_dict['epoch'] = '_'.join((subject_paradigm_date_tag, epoch_ext))
+    subject_filenames_dict['evoked'] = '_'.join((subject_paradigm_date_tag, evoked_ext))
     subject_filenames_dict['sensor_tfr'] = '_'.join((subject_paradigm_date_tag, sensor_tfr_ext))
+    subject_filenames_dict['sensor_psd'] = '_'.join((subject_paradigm_date_tag, sensor_psd_ext))
 
     subject_filenames_dict['sensor_tfr_plot'] = '_'.join((subject_paradigm_date_tag, sensor_tfr_plot_ext))
+    subject_filenames_dict['sensor_psd_plot'] = '_'.join((subject_paradigm_date_tag, sensor_psd_plot_ext))
     subject_filenames_dict['evoked_plot'] = '_'.join((subject_paradigm_date_tag, sensor_evoked_ext))
 
     subject_filenames_dict['inverse_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'inverse')
