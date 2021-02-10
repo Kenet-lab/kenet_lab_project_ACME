@@ -1,14 +1,6 @@
-from enum import Enum
 import paradigm_config as para_cfg
 import io_helpers as i_o
 from os.path import join
-
-
-class Sentinel(Enum):
-    """Success sentinels for the various stages of processing."""
-    MAXWELL = "maxwell_success"
-    EPOCH = "epoch_success"
-    SENSORS_TFR = "sensor_tfr_success"
 
 ### TOP LEVEL: HARD-CODED LOCATIONS
 meg_dir = para_cfg.meg_dir # MEG directory

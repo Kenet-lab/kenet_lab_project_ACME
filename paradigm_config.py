@@ -18,7 +18,7 @@ shared_func_dir = join(transcend_dir, 'scripts')
 n_jobs = max(cpu_count() - 4, 1)
 
 ### MID LEVEL ### paradigm-relevant parameters, variables...
-paradigm = 'paradigm'
+paradigm = 'sandbox'
 paradigm_dir = join(meg_dir, paradigm)
 paradigm_vars_output_filename = f'{paradigm}_paradigm_config_variables_output_{current_datetime}.txt'
 
@@ -26,7 +26,7 @@ reports_dir = join(paradigm_dir, 'reports')
 
 
 # noise covariance matrix, inverse computation done by using either baseline period or ERM
-proc_using_baseline = False
+proc_using_baseline = True
 proc_using_erm = False if proc_using_baseline else True
 
 ### LOW LEVEL ### analysis-relevant parameters, variables, etc...
@@ -48,7 +48,7 @@ preproc_ica = False if preproc_ssp else True # eventually add infrastructure to 
 
 # epoching parameters
 epoch_tmin = -0.2
-epoch_tmax = 1.3
+epoch_tmax = 1.
 
 epoch_dur = (epoch_tmax - epoch_tmin) * 1000.
 epoch_baseline = (epoch_tmin, 0.)
@@ -70,8 +70,8 @@ n_cycles = freqs / 2.  # different number of cycles per frequency
 n_cycles[freqs < 15] = 2
 
 # sensor power/ITC windowing parameters
-tfr_t_start = 0.3
-tfr_t_end = 1.0
+tfr_t_start = 0.2
+tfr_t_end = 0.9
 tfr_temporal_dict = {'t_start':tfr_t_start, 't_end': tfr_t_end}
 
 sensor_report_fname = f'sensor_space_{paradigm}_{current_datetime}_report.h5' # sensor space report filename
