@@ -1,10 +1,8 @@
 import mne
-from os import listdir
 from os.path import join
 import visuals as vis
 import io_helpers as i_o
 import numpy as np
-import fnmatch
 
 
 def calc_sensor_tfr(epochs, freqs, n_cycles, n_jobs, save_loc, sensor_tfr_name, paradigm):
@@ -31,21 +29,43 @@ def compute_psd(evoked, freqs, n_jobs, save_loc, sensor_psd_fname):
     return
 
 
-def analyze_sensor_space_and_add_to_report(subject, condition, sensor_subdir):
-    sensor_space_files = listdir(sensor_subdir)
+def analyze_sensor_space_and_make_figures(sensor_subdir, sensor_tfr_name, sensor_psd_name, freqs, tfr_temporal_dict,
+                                          sensor_tfr_plot_name, sensor_psd_plot_name):
+    # LOAD/IMPORT DATA
+    itc_match = i_o.find_file_matches(sensor_subdir, f"{sensor_tfr_name.replace('tfr_kind', 'itc')}")
+    power_match = i_o.find_file_matches(sensor_subdir, f"{sensor_tfr_name.replace('tfr_kind', 'power')}")
+    psd_matches = sorted(i_o.find_file_matches(sensor_subdir, f"{sensor_psd_name.replace('CH_TYPE', '*')}"))
 
-    for ssm in ['itc', 'power', 'psd']: # loop through sensor space metrics (ssm)
-        matches = sorted(fnmatch.filter(listdir(sensor_subdir), f''))
+    try:
+        itc = mne.time_frequency.read_tfrs(join(sensor_subdir, itc_match[0]))[0]
+        power = mne.time_frequency.read_tfrs(join(sensor_subdir, power_match[0]))[0]
+    except IOError: # no ITC/power TFR data available, because paradigm is fixation
+        itc = None
+        power = None
 
-    sensor_itc_matches = sorted(fnmatch.filter(listdir(sensor_subdir), f'{subject}*{condition}*{ssm}'))
-    sensor_pow_matches = sorted(fnmatch.filter(listdir(sensor_subdir), ''))
-    sensor_psd_matches = sorted(fnmatch.filter(listdir(sensor_subdir), ''))
+    psds = [np.load(join(sensor_subdir, psd_match)) for psd_match in psd_matches]
+    psd_eeg = psds[0] if len(psds) == 2 else None
+    psd_meg = psds[-1]
 
-    sensor_itcs = mne.time_frequency.read_tfrs()
-    sensor_pows = mne.time_frequency.read_tfrs()
-    sensor_psds = np.load()
+    # DETERMINE EEG AVAILABILITY
+    picks = ['eeg', 'meg'] if isinstance(psd_eeg, np.ndarray) else ['meg']
 
-    return
+    t_start = tfr_temporal_dict['t_start']
+    t_end = tfr_temporal_dict['t_end']
+
+    # check if ITC/power are available (not None), then begin analyzing
+    if not isinstance(itc, type(None)):
+        # ITC and power available...
+        vis.plot_sensor_space_tfr(itc, power, picks, sensor_subdir, sensor_tfr_plot_name.replace('filler', 'TFR'))
+
+        itc_cropped = itc.copy().crop(tmin=t_start, tmax=t_end)
+        # make ITC channels figure
+        vis.plot_sensor_channels_arrays_by_frequency(itc_cropped, freqs, picks, sensor_subdir,
+                                                     sensor_tfr_plot_name.replace('filler', f'{int(t_start*1000)}_{int(t_end*1000)}_itc'))
+    # make PSD channels figure
+    vis.plot_sensor_channels_arrays_by_frequency(psds, freqs, picks, sensor_subdir, sensor_psd_plot_name)
+
+
 
 
 
