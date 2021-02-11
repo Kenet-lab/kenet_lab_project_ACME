@@ -16,8 +16,8 @@ def calc_sensor_tfr(epochs, freqs, n_cycles, n_jobs, save_loc, sensor_tfr_name, 
         return
     power, itc = mne.time_frequency.tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True, return_itc=True,
                                                decim=1, n_jobs=n_jobs)
-    power.save(join(save_loc, sensor_tfr_name.replace('tfr_kind', 'power')))
-    itc.save(join(save_loc, sensor_tfr_name.replace('tfr_kind', 'itc')))
+    power.save(join(save_loc, sensor_tfr_name.replace('tfr_kind', 'power')), overwrite=True)
+    itc.save(join(save_loc, sensor_tfr_name.replace('tfr_kind', 'itc')), overwrite=True)
 
 
 def compute_psd(evoked, freqs, n_jobs, save_loc, sensor_psd_fname):

@@ -180,7 +180,7 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
 
 def find_bads_eeg(raw, epochs_parameters_dict, n_jobs, subject_preproc_dir, eeg_bads_fname):
 
-    events, events_differential_corrected = i_o.find_events(raw, stim_channel='STI101')
+    events = mne.find_events(raw, stim_channel='STI101')
     eeg_data = raw.copy().pick_types(meg=False, eeg=True)
 
     eeg_epochs = mne.Epochs(eeg_data, events, tmin=epochs_parameters_dict['tmin'], tmax=epochs_parameters_dict['tmax'],

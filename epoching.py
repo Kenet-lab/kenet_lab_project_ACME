@@ -14,7 +14,7 @@ def main(subject, subject_fnames, log):
     for subdir in ['preproc_subdir', 'preproc_plots_subdir', 'epochs_subdir']:
         i_o.check_and_build_subdir(subject_fnames[subdir])
 
-    sssd_data = i_o.preload_raws(subject_paradigm_dir, subject_fnames['sss_paradigm'])[0]
+    sssd_data = i_o.preload_raws(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm'])[0]
 
     events, events_differential_corrected = i_o.find_events(sssd_data, 'STI101', para_cfg.paradigm, para_cfg.epoch_dur)
 

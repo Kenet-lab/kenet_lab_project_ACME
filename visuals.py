@@ -28,8 +28,8 @@ def plot_evoked_sensor(epochs, save_loc, evoked_sensor_pattern):
 def plot_sensor_space_tfr(itc, power, picks, save_loc, save_name):
     fig, axs = plt.subplots(2, len(picks), sharex=True, sharey=True)
     for idx, pick in enumerate(picks):
-        itc.plot(picks=pick, baseline=None, show=False, combine='mean', axes=[0, idx], exclude='bads', colorbar=False)
-        power.plot(picks=pick, baseline=None, show=False, combine='mean', axes=[1, idx], exclude='bads', colorbar=False)
+        itc.plot(picks=pick, baseline=None, show=False, combine='mean', axes=axs[0, idx], exclude='bads', colorbar=False)
+        power.plot(picks=pick, baseline=None, show=False, combine='mean', axes=axs[1, idx], exclude='bads', colorbar=False)
         axs[0, idx].set_title(f'ITC: {pick.upper()}')
         axs[1, idx].set_title(f'Power: {pick.upper()}')
     fig.suptitle('Sensor space time-frequency')
@@ -43,6 +43,7 @@ def plot_sensor_channels_arrays_by_frequency(sensor_data, freqs, picks, save_loc
     for idx, pick in enumerate(picks):
         if isinstance(sensor_data, mne.time_frequency.AverageTFR):
             sensor_array = sensor_data.copy().pick(picks=pick).data.mean(axis=2)
+            freq_array = sensor_data.freqs
             title_id = sensor_data.method.split('-')[1]
         else:
             freq_array = freqs[idx]
@@ -75,7 +76,7 @@ def plot_sensor_tfr_channels(sensor_array, freqs, save_loc, ch_plot_fname):
 
 def add_to_sensor_space_report(subject, condition, sensor_subdir, sensor_tfr_plot_name, sensor_psd_plot_name,
                                tfr_temporal_dict, report_dir, report_name):
-
+    i_o.check_and_build_subdir(report_dir)
     report_path = join(report_dir, report_name) # full path to report's location
     sensor_report = mne.open_report(report_path) if isfile(report_path) else mne.Report() # create or load report
 

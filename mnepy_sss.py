@@ -36,7 +36,7 @@ def handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_parad
         sss_list.append(sss)
 
     sss_concat = mne.concatenate_raws(sss_list) # concatenate all runs
-    sss_concat.save(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm'])) # save
+    sss_concat.save(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm']), overwrite=True) # save
     return bads_list
 
 
