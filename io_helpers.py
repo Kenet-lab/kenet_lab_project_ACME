@@ -125,15 +125,15 @@ def check_and_build_subdir(subdir): # needs work, should replace more than subje
 
 def save_bad_channels(raw, bads, save_loc, save_name):
     with open(join(save_loc, save_name), 'a+') as bads_file:
-        if isfile(bads_file):
+        if isfile(join(save_loc, save_name)):
             current_bads = [line.strip() for line in bads_file.readlines()]
             bads_to_add = list(set(bads).difference(set(current_bads)))  # check if any of the "new" bads were already saved
-            bads_file.write(raw)
+            bads_file.write(str(raw))
             for bad_to_add in bads_to_add:
                 bads_file.write(f'{bad_to_add}\n')
             bads_file.close()
         else:
-            bads_file.write(raw)
+            bads_file.write(str(raw))
             for bad in bads:
                 bads_file.write(f'{bad}\n')
             bads_file.close()

@@ -15,7 +15,7 @@ def calc_sensor_tfr(epochs, freqs, n_cycles, n_jobs, save_loc, sensor_tfr_name, 
     if paradigm in ['fix', 'fixation', 'RestingState', 'EyesClosed', 'EyesOpen']:
         return
     power, itc = mne.time_frequency.tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True, return_itc=True,
-                                               decim=3, n_jobs=n_jobs)
+                                               decim=1, n_jobs=n_jobs)
     power.save(join(save_loc, sensor_tfr_name.replace('tfr_kind', 'power')))
     itc.save(join(save_loc, sensor_tfr_name.replace('tfr_kind', 'itc')))
 
@@ -25,7 +25,7 @@ def compute_psd(evoked, freqs, n_jobs, save_loc, sensor_psd_fname):
     for p in picks:
         psd, freqs = mne.time_frequency.psd_welch(evoked, fmin=freqs.min(), fmax=freqs.max(), picks=p, n_jobs=n_jobs)
         np.save(join(save_loc, sensor_psd_fname.replace('CH_TYPE', p)), psd)
-
+        np.save(join(save_loc, sensor_psd_fname.replace('CH_TYPE', f'{p}_freqs')), freqs)
     return
 
 
@@ -34,8 +34,8 @@ def analyze_sensor_space_and_make_figures(sensor_subdir, sensor_tfr_name, sensor
     # LOAD/IMPORT DATA
     itc_match = i_o.find_file_matches(sensor_subdir, f"{sensor_tfr_name.replace('tfr_kind', 'itc')}")
     power_match = i_o.find_file_matches(sensor_subdir, f"{sensor_tfr_name.replace('tfr_kind', 'power')}")
-    psd_matches = sorted(i_o.find_file_matches(sensor_subdir, f"{sensor_psd_name.replace('CH_TYPE', '*')}"))
-
+    psd_matches = sorted(i_o.find_file_matches(sensor_subdir, f"{sensor_psd_name.replace('CH_TYPE', '???')}"))
+    psd_freq_matches = sorted(i_o.find_file_matches(sensor_subdir, f"{sensor_psd_name.replace('CH_TYPE', '???_freqs')}"))
     try:
         itc = mne.time_frequency.read_tfrs(join(sensor_subdir, itc_match[0]))[0]
         power = mne.time_frequency.read_tfrs(join(sensor_subdir, power_match[0]))[0]
@@ -44,6 +44,7 @@ def analyze_sensor_space_and_make_figures(sensor_subdir, sensor_tfr_name, sensor
         power = None
 
     psds = [np.load(join(sensor_subdir, psd_match)) for psd_match in psd_matches]
+    psds_freqs = [np.load(join(sensor_subdir, psd_freq_match)) for psd_freq_match in psd_freq_matches]
     psd_eeg = psds[0] if len(psds) == 2 else None
     psd_meg = psds[-1]
 
@@ -60,12 +61,10 @@ def analyze_sensor_space_and_make_figures(sensor_subdir, sensor_tfr_name, sensor
 
         itc_cropped = itc.copy().crop(tmin=t_start, tmax=t_end)
         # make ITC channels figure
-        vis.plot_sensor_channels_arrays_by_frequency(itc_cropped, freqs, picks, sensor_subdir,
-                                                     sensor_tfr_plot_name.replace('filler', f'{int(t_start*1000)}_{int(t_end*1000)}_itc'))
+        vis.plot_sensor_channels_arrays_by_frequency(itc_cropped, None, picks, sensor_subdir,
+                                                     sensor_tfr_plot_name.replace('filler', f'{int(t_start*1000)}_{int(t_end*1000)}_ITC'))
     # make PSD channels figure
-    vis.plot_sensor_channels_arrays_by_frequency(psds, freqs, picks, sensor_subdir, sensor_psd_plot_name)
-
-
+    vis.plot_sensor_channels_arrays_by_frequency(psds, psds_freqs, picks, sensor_subdir, sensor_psd_plot_name)
 
 
 

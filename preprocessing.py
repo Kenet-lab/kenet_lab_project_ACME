@@ -43,7 +43,7 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, sav
         raw.set_eeg_reference(ref_channels='average') # apply average reference
         raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
     if save:
-        raw.save(join(save_loc_signal, signal_fname))
+        raw.save(join(save_loc_signal, signal_fname), overwrite=True)
     return raw
 
 
@@ -81,8 +81,9 @@ def ssp_exg(raw, ssp_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, 
                         ssp_topo_pattern, plot_save_loc)
     blink_projs = ssp_eog(raw, ssp_dict['params'], eog_fab_channels_usable, n_jobs, proj_fname, proj_save_loc,
                           ssp_topo_pattern, plot_save_loc)
-
-    raw.add_proj(qrs_projs + blink_projs) # add the projections to the signal
+    for proj in [qrs_projs, blink_projs]:
+        if proj:
+            raw.add_proj(proj)
     raw.apply_proj() # clean the data
     return raw
 
@@ -92,10 +93,10 @@ def ssp_ecg(raw, ssp_params, ecg_fab_channels, n_jobs, proj_fname, proj_save_loc
         qrs_projs = find_ecg_artifacts_without_ecg_channel(raw, ssp_params, ecg_fab_channels, n_jobs)
     else:
         qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params, n_jobs=n_jobs)
-
-    i_o.save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
-    vis.make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
-    i_o.log_projs(qrs_projs, 'ECG')
+    if qrs_projs:
+        i_o.save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
+        vis.make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
+        i_o.log_projs(qrs_projs, 'ECG')
     return qrs_projs
 
 def find_ecg_artifacts_without_ecg_channel(raw, ssp_params, ecg_fab_channels, n_jobs):
@@ -111,10 +112,10 @@ def ssp_eog(raw, ssp_params, eog_fab_channels, n_jobs, proj_fname, proj_save_loc
         blink_projs = find_eog_artifacts_without_eog_channel(raw, ssp_params, eog_fab_channels, n_jobs)
     else:
         blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params, n_jobs=n_jobs)
-
-    i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
-    vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
-    i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
+    if blink_projs:
+        i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
+        vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
+        i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
     return blink_projs
 
 def find_eog_artifacts_without_eog_channel(raw, ssp_params, eog_fab_channels, n_jobs):

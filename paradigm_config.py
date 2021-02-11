@@ -38,9 +38,7 @@ h_freq = 144.
 # key <-> condition name
 # value <-> condition's information (nested dictionary)
 conditions_dicts = {'25Hz': {'event_id': [1],
-                            'value': 25.},
-                    'baseline': {'event_id': None,
-                                 'value': None}}
+                            'value': 25.}}
 
 # artifact removal method(s)
 preproc_ssp = True
@@ -62,7 +60,7 @@ epoch_reject = dict(grad=grad_epoch_reject, mag=mag_epoch_reject, eeg=eeg_epoch_
 
 epochs_parameters_dict = {'tmin': epoch_tmin, 'tmax': epoch_tmax,
                           'baseline': epoch_baseline, 'proj': epoch_proj,
-                          'reject': epoch_reject}
+                          'reject': None}
 
 # parameters dictionary for windowing power/ITC, include modes like 'mean', 'max'...
 freqs = arange(7, 99, 2) # frequencies of interest

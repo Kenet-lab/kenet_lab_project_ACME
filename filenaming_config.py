@@ -25,8 +25,8 @@ sensor_evoked_ext = epoch_ext.replace('epo.fif', 'evoked_filler.png')
 sensor_tfr_ext = epoch_ext.replace('epo.fif', 'tfr_kind-tfr.h5')
 sensor_psd_ext = epoch_ext.replace('epo.fif', 'CH_TYPE_psd.npy')
 
-sensor_tfr_plot_ext = sensor_tfr_ext.replace('-tfr.h5', '_filler.png')
-sensor_psd_plot_ext = sensor_psd_ext.replace('npy', 'png')
+sensor_tfr_plot_ext = sensor_tfr_ext.replace('tfr_kind-tfr.h5', '_filler.png')
+sensor_psd_plot_ext = sensor_psd_ext.replace('CH_TYPE_psd.npy', 'PSD.png')
 
 inv_ext = epoch_ext.replace('epo', 'inv')
 
@@ -51,11 +51,7 @@ def create_paradigm_subject_mapping(subject):
 
     visit_date = i_o.get_measure_date_from_path(subject_paradigm_dir, raw_pattern) # read the subject's visit date
     subject_paradigm_date_tag = '_'.join((subject_paradigm_tag, visit_date)) # attach visit date to breadcrumbs
-
-    # SG - so there is a sentinel file/object for each subject, located in their paradigm directory
-    subject_filenames_dict[Sentinel.MAXWELL] = join(subject_paradigm_dir, Sentinel.MAXWELL.value)
-    subject_filenames_dict[Sentinel.EPOCH] = join(subject_paradigm_dir, Sentinel.EPOCH.value)
-    subject_filenames_dict[Sentinel.SENSORS_TFR] = join(subject_paradigm_dir, Sentinel.SENSORS_TFR.value)
+    i_o.check_and_build_subdir(join(subject_paradigm_dir, f'visit_{visit_date}'))
 
     subject_filenames_dict['meg_date'] = visit_date
 
