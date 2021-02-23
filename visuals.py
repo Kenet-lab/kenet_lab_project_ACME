@@ -28,8 +28,10 @@ def plot_evoked_sensor(epochs, save_loc, evoked_sensor_pattern):
 def plot_sensor_space_tfr(itc, power, picks, save_loc, save_name):
     fig, axs = plt.subplots(2, len(picks), sharex=True, sharey=True)
     for idx, pick in enumerate(picks):
-        itc.plot(picks=pick, baseline=None, show=False, combine='mean', axes=axs[0, idx], exclude='bads', colorbar=False)
-        power.plot(picks=pick, baseline=None, show=False, combine='mean', axes=axs[1, idx], exclude='bads', colorbar=False)
+        itc_ax = axs[0, idx] if len(picks) == 2 else axs[0]
+        pow_ax = axs[1, idx] if len(picks) == 2 else axs[1]
+        itc.plot(picks=pick, baseline=None, show=False, combine='mean', axes=itc_ax, exclude='bads', colorbar=False)
+        power.plot(picks=pick, baseline=None, show=False, combine='mean', axes=pow_ax, exclude='bads', colorbar=False)
         axs[0, idx].set_title(f'ITC: {pick.upper()}')
         axs[1, idx].set_title(f'Power: {pick.upper()}')
     fig.suptitle('Sensor space time-frequency')
@@ -41,6 +43,7 @@ def plot_sensor_channels_arrays_by_frequency(sensor_data, freqs, picks, save_loc
 
     fig, axs = plt.subplots(1, len(picks), sharex=True, sharey=True)
     for idx, pick in enumerate(picks):
+        ax = axs[idx] if len(picks) == 2 else axs
         if isinstance(sensor_data, mne.time_frequency.AverageTFR):
             sensor_array = sensor_data.copy().pick(picks=pick).data.mean(axis=2)
             freq_array = sensor_data.freqs
@@ -51,9 +54,9 @@ def plot_sensor_channels_arrays_by_frequency(sensor_data, freqs, picks, save_loc
             sensor_array /= sensor_array.mean()
             title_id = 'PSD'
 
-        axs[idx].plot(freq_array, sensor_array.T)
-        axs[idx].set_title(pick.upper())
-        axs[idx].set_xlabel('Frequency [Hz]')
+        ax.plot(freq_array, sensor_array.T)
+        ax.set_title(pick.upper())
+        ax.set_xlabel('Frequency [Hz]')
 
     fig.suptitle(f'Sensor space {title_id}')
     fig.savefig(join(save_loc, save_name))

@@ -18,8 +18,8 @@ shared_func_dir = join(transcend_dir, 'scripts')
 n_jobs = max(cpu_count() - 4, 1)
 
 ### MID LEVEL ### paradigm-relevant parameters, variables...
-paradigm = 'sandbox'
-paradigm_dir = join(meg_dir, paradigm)
+paradigm = 'paradigm'
+paradigm_dir = join(meg_dir, 'sandbox', paradigm)
 paradigm_vars_output_filename = f'{paradigm}_paradigm_config_variables_output_{current_datetime}.txt'
 
 reports_dir = join(paradigm_dir, 'reports')
