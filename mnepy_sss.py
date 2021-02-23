@@ -20,7 +20,7 @@ def handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_parad
 
     raw = mne.concatenate_raws(raws)
     subject_sss_params['destination'] = raw.info['dev_head_t'] # use run #1 for head position transformation
-    subject_sss_params['origin'] = preproc.generate_head_origin(raw.info, subject_paradigm_dir, subject_fnames['head_origin'])
+    subject_sss_params['origin'] = preproc.generate_head_origin(raw.info, subject_fnames['preproc_subdir'], subject_fnames['head_origin'])
     subject_sss_params['head_pos'] = preproc.calc_head_position(raw, subject_fnames['preproc_subdir'],  subject_fnames['head_pos'])
     bads_meg = preproc.find_bads_meg(raw, subject_sss_params, subject_fnames['preproc_subdir'], subject_fnames['meg_bads'], para_cfg.n_jobs)
     raw.info['bads'].extend(bads_meg)

@@ -22,9 +22,7 @@ def apply_notch_filter_to_eeg(raw, n_jobs, loc, eeg_bads_fname, epochs_parameter
         raw.notch_filter(np.arange(notch_freq, 241, notch_freq), picks=['eeg'], n_jobs=n_jobs)
     return raw
 
-
-def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname,
-                  epochs_parameters_dict, save=True):
+def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc, signal_fname, eeg_bads_fname, epochs_parameters_dict, save=True):
     """
     :param raw: signal to bandpass filter
     :param l_freq: lower cutoff frequency
@@ -41,9 +39,9 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, sav
     if raw.__contains__('eeg'):
         raw.set_montage('mgh70') # import correct cap layout
         raw.set_eeg_reference(ref_channels='average') # apply average reference
-        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
+        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc, eeg_bads_fname, epochs_parameters_dict)
     if save:
-        raw.save(join(save_loc_signal, signal_fname), overwrite=True)
+        raw.save(join(save_loc, signal_fname), overwrite=True)
     return raw
 
 

@@ -81,7 +81,7 @@ def add_to_sensor_space_report(subject, condition, sensor_subdir, sensor_tfr_plo
                                tfr_temporal_dict, report_dir, report_name):
     i_o.check_and_build_subdir(report_dir)
     report_path = join(report_dir, report_name) # full path to report's location
-    sensor_report = mne.open_report(report_path) if isfile(report_path) else mne.Report() # create or load report
+    sensor_report = mne.open_report(report_path) # load report
 
     t_start = int(tfr_temporal_dict['t_start']* 1000)
     t_end = int(tfr_temporal_dict['t_end']* 1000)

@@ -1,9 +1,12 @@
-import os
 import filenaming_config as fname_cfg
 import paradigm_config as paradigm_cfg
 from mnepy_sss import main as maxwell_main
 from epoching import main as epochs_main
 from sensor_space_analysis import main as sensor_tfr_main
+from mne import open_report, Report
+from io_helpers import check_and_build_subdir
+from os import listdir
+from os.path import join
 
 
 def run_if_needed(function, subject, subject_filenaming_dict, log_name, override=True):
@@ -27,11 +30,14 @@ def run_subject(subject, subject_filenaming_dict):
 
 def run_subjects():
     """ process all subjects in the paradigm directory"""
-    for subject in os.listdir(paradigm_cfg.paradigm_dir):
+    for subject in listdir(paradigm_cfg.paradigm_dir):
         if subject.isnumeric():
             subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject)
             run_subject(subject, subject_filename_dict)
 
 
 if __name__ == "__main__":
+    check_and_build_subdir(paradigm_cfg.reports_dir)
+    sensor_report = Report()
     run_subjects()
+    sensor_report.save(join(paradigm_cfg.reports_dir, paradigm_cfg.sensor_report_fname.replace('h5', 'html')))
