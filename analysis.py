@@ -39,7 +39,7 @@ def analyze_sensor_space_and_make_figures(sensor_subdir, sensor_tfr_name, sensor
     try:
         itc = mne.time_frequency.read_tfrs(join(sensor_subdir, itc_match[0]))[0]
         power = mne.time_frequency.read_tfrs(join(sensor_subdir, power_match[0]))[0]
-    except IOError: # no ITC/power TFR data available, because paradigm is fixation
+    except IndexError: # no ITC/power TFR data available, because paradigm is fixation
         itc = None
         power = None
 

@@ -51,7 +51,7 @@ def find_events(raw, stim_channel, paradigm, event_duration):
     :return: events baseline
     """
     if paradigm in ['fix', 'fixation', 'RestingState', 'EyesClosed', 'EyesOpen']:
-        events = mne.make_fixed_length_events(raw, duration=event_duration)
+        events = mne.make_fixed_length_events(raw, duration=event_duration/1000.)
     else:
         events = mne.find_events(raw, stim_channel=stim_channel, shortest_event=1)
     # shortest event -> the minimum number of samples an event must last

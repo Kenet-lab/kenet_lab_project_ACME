@@ -168,9 +168,10 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
     :param sss_params: dictionary containing relevant SSS/maxwell filtering parameters
     :return: raw file with bad MEG channels added to its header, as well as the bad channels detected
     """
+    params_copy = sss_params.copy()
     for key in ['st_correlation', 'destination', 'st_duration']:
-        sss_params.pop(key) # remove un-needed arguments from parameters dictionary
-    noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw, **sss_params) # find the bad channels
+        params_copy.pop(key) # remove un-needed arguments from parameters dictionary
+    noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw, **params_copy) # find the bad channels
     bads = noisy + flat
     i_o.save_bad_channels(raw, bads, subject_preproc_dir, meg_bads_fname) # save accordingly
     return bads
