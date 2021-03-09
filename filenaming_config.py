@@ -36,20 +36,23 @@ epoched_script_log_name = f'{paradigm}_epoch_script_{para_cfg.current_datetime}.
 sensor_space_script_log_name = f'{paradigm}_sensor_space_script_{para_cfg.current_datetime}.log'
 inverse_script_log_name = f'{paradigm}_inverse_sol_script_{para_cfg.current_datetime}.log'
 
-def create_paradigm_subject_mapping(subject):
+def create_paradigm_subject_mapping(subject, date):
     """ create a dictionary whose keys are relevant/required subdirectories/filenames,
     and whose values are the very filename formatted with appropriate variables
     :param subject: string denoting subject ID
     :return: subject dictionary containing all of their relevant, formatted filenames/subdirectories
     """
     subject_filenames_dict = {}
-
-    subject_paradigm_dir = join(paradigm_dir, subject)
-
     subject_paradigm_tag = f'{subject}_{paradigm}'
     raw_pattern = '_'.join((subject_paradigm_tag, '*raw.fif'))
 
-    visit_date = i_o.get_measure_date_from_path(subject_paradigm_dir, raw_pattern) # read the subject's visit date
+    if not date: # if date is None, AKA the subject does not have longitudinal data
+        subject_paradigm_dir = join(paradigm_dir, subject)
+        visit_date = i_o.get_measure_date_from_path(subject_paradigm_dir, raw_pattern) # read the subject's visit date
+    else:
+        subject_paradigm_dir = join(paradigm_dir, f'{subject}_{date}')
+        visit_date = date
+
     subject_paradigm_date_tag = '_'.join((subject_paradigm_tag, visit_date)) # attach visit date to breadcrumbs
     i_o.check_and_build_subdir(join(subject_paradigm_dir, f'visit_{visit_date}'))
 

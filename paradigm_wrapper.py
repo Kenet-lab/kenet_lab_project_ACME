@@ -30,10 +30,12 @@ def run_subject(subject, subject_filenaming_dict):
 
 def run_subjects():
     """ process all subjects in the paradigm directory"""
-    for subject in listdir(paradigm_cfg.paradigm_dir):
-        if subject.isnumeric():
-            subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject)
-            run_subject(subject, subject_filename_dict)
+    for subject_folder in listdir(paradigm_cfg.paradigm_dir):
+        subject_identifiers = subject_folder.split('_')
+        subject = subject_identifiers[0]
+        date = None if len(subject_identifiers) == 1 else subject_identifiers[-1]
+        subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject, date)
+        run_subject(subject, subject_filename_dict)
 
 
 if __name__ == "__main__":
