@@ -33,6 +33,7 @@ def main(subject, subject_fnames, log):
     logging.basicConfig(filename=log, level=logging.DEBUG)
 
     subject_paradigm_dir = join(para_cfg.paradigm_dir, subject)
+    subject_paradigm_visit_dir = join(subject_paradigm_dir, f"visit_{subject_fnames['meg_date']}")
     subject_erm_dir = join(para_cfg.erm_dir, subject)
     subject_sss_params = sss_cfg.sss_params # load SSS parameters dictionary
 

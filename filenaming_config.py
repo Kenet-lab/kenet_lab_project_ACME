@@ -36,30 +36,23 @@ epoched_script_log_name = f'{paradigm}_epoch_script_{para_cfg.current_datetime}.
 sensor_space_script_log_name = f'{paradigm}_sensor_space_script_{para_cfg.current_datetime}.log'
 inverse_script_log_name = f'{paradigm}_inverse_sol_script_{para_cfg.current_datetime}.log'
 
-def create_paradigm_subject_mapping(subject, date):
+def create_paradigm_subject_mapping(subject, visit_folder):
     """ create a dictionary whose keys are relevant/required subdirectories/filenames,
     and whose values are the very filename formatted with appropriate variables
     :param subject: string denoting subject ID
     :return: subject dictionary containing all of their relevant, formatted filenames/subdirectories
     """
     subject_filenames_dict = {}
+    subject_paradigm_dir = join(paradigm_dir, subject)
     subject_paradigm_tag = f'{subject}_{paradigm}'
+
     raw_pattern = '_'.join((subject_paradigm_tag, '*raw.fif'))
+    subject_paradigm_date_tag = '_'.join((subject_paradigm_tag, visit_folder.replace('visit_', ''))) # attach visit to breadcrumbs
 
-    if not date: # if date is None, AKA the subject does not have longitudinal data
-        subject_paradigm_dir = join(paradigm_dir, subject)
-        visit_date = i_o.get_measure_date_from_path(subject_paradigm_dir, raw_pattern) # read the subject's visit date
-    else:
-        subject_paradigm_dir = join(paradigm_dir, f'{subject}_{date}')
-        visit_date = date
+    subject_filenames_dict['meg_date'] = visit_folder.replace('visit_', '')
 
-    subject_paradigm_date_tag = '_'.join((subject_paradigm_tag, visit_date)) # attach visit date to breadcrumbs
-    i_o.check_and_build_subdir(join(subject_paradigm_dir, f'visit_{visit_date}'))
-
-    subject_filenames_dict['meg_date'] = visit_date
-
-    subject_filenames_dict['epochs_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'epoched')
-    subject_filenames_dict['preproc_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'preprocessing')
+    subject_filenames_dict['epochs_subdir'] = join(subject_paradigm_dir, visit_folder, 'epoched')
+    subject_filenames_dict['preproc_subdir'] = join(subject_paradigm_dir, visit_folder, 'preprocessing')
 
     subject_filenames_dict['epochs_sensor_subdir'] = join(subject_filenames_dict['epochs_subdir'], 'sensor_space')
     subject_filenames_dict['preproc_plots_subdir'] = join(subject_filenames_dict['preproc_subdir'], 'plots')
@@ -90,7 +83,7 @@ def create_paradigm_subject_mapping(subject, date):
     subject_filenames_dict['sensor_psd_plot'] = '_'.join((subject_paradigm_date_tag, sensor_psd_plot_ext))
     subject_filenames_dict['evoked_plot'] = '_'.join((subject_paradigm_date_tag, sensor_evoked_ext))
 
-    subject_filenames_dict['inverse_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'inverse')
+    subject_filenames_dict['inverse_subdir'] = join(subject_paradigm_dir, visit_folder, 'inverse')
     subject_filenames_dict['inverse_name'] = '_'.join((subject_paradigm_date_tag, inv_ext))
     subject_filenames_dict['bem_plot'] = '_'.join((subject_paradigm_date_tag, 'bem_plot.png'))
     subject_filenames_dict['coreg_plot'] = '_'.join((subject_paradigm_date_tag, 'alignment_plot.png'))
