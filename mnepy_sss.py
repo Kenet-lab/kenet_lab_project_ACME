@@ -39,7 +39,7 @@ def main(subject, subject_fnames, log):
 
     i_o.check_and_build_subdir(subject_fnames['preproc_subdir']) # check and/or build subject subdirectories relevant to the script
 
-    raws = i_o.preload_raws(subject_paradigm_dir, subject_fnames['raw_paradigm'])
+    raws = i_o.preload_raws(subject_paradigm_visit_dir, subject_fnames['raw_paradigm'])
     bads_list = handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir)
 
     if para_cfg.proc_using_erm:
