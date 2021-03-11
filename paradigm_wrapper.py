@@ -5,8 +5,8 @@ from epoching import main as epochs_main
 from sensor_space_analysis import main as sensor_tfr_main
 from mne import open_report, Report
 from io_helpers import check_and_build_subdir
-from os import listdir
-from os.path import join
+from os import listdir, walk
+import os.path as op
 
 
 def run_if_needed(function, subject, subject_filenaming_dict, log_name, override=True):
@@ -30,14 +30,19 @@ def run_subject(subject, subject_filenaming_dict):
 
 def run_subjects():
     """ process all subjects in the paradigm directory"""
-    for subject in listdir(paradigm_cfg.paradigm_dir):
-        if subject.isnumeric():
-            subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject)
-            run_subject(subject, subject_filename_dict)
+    for subject_folder_path, directory_names, filenames in walk(paradigm_cfg.paradigm_dir):
+        path_identification = op.split(subject_folder_path) # split the file path to obtain current subfolder name
+        if 'visit' not in path_identification[1]: # if the current location isn't a visit subfolder, skip
+            continue
+        visit_folder = path_identification[1]
+        subject = op.split(path_identification[0])[1]  # split the path again to obtain the subject ID
+
+        subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject, visit_folder)
+        run_subject(subject, subject_filename_dict)
 
 
 if __name__ == "__main__":
     check_and_build_subdir(paradigm_cfg.reports_dir)
     sensor_report = Report()
     run_subjects()
-    sensor_report.save(join(paradigm_cfg.reports_dir, paradigm_cfg.sensor_report_fname.replace('h5', 'html')))
+    sensor_report.save(op.join(paradigm_cfg.reports_dir, paradigm_cfg.sensor_report_fname.replace('h5', 'html')))

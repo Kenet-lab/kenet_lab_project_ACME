@@ -153,11 +153,13 @@ def calc_head_position(raw, save_loc, fname):
     :param raw: raw file to generate head position matrix for
     :return: head postion array
     """
-    ext_order = 3
-    chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw, ext_order=ext_order)
-    chpi_locs = mne.chpi.compute_chpi_locs(raw.info, chpi_amplitudes)
-    head_pos = mne.chpi.compute_head_pos(raw.info, chpi_locs)
-    np.savetxt(join(save_loc, fname), head_pos)
+    if not raw.__contains__('chpi'):
+        head_pos = None
+    else:
+        chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw, ext_order=ext_order)
+        chpi_locs = mne.chpi.compute_chpi_locs(raw.info, chpi_amplitudes)
+        head_pos = mne.chpi.compute_head_pos(raw.info, chpi_locs)
+        np.savetxt(join(save_loc, fname), head_pos)
     return head_pos
 
 

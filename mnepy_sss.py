@@ -33,12 +33,13 @@ def main(subject, subject_fnames, log):
     logging.basicConfig(filename=log, level=logging.DEBUG)
 
     subject_paradigm_dir = join(para_cfg.paradigm_dir, subject)
+    subject_paradigm_visit_dir = join(subject_paradigm_dir, f"visit_{subject_fnames['meg_date']}")
     subject_erm_dir = join(para_cfg.erm_dir, subject)
     subject_sss_params = sss_cfg.sss_params # load SSS parameters dictionary
 
     i_o.check_and_build_subdir(subject_fnames['preproc_subdir']) # check and/or build subject subdirectories relevant to the script
 
-    raws = i_o.preload_raws(subject_paradigm_dir, subject_fnames['raw_paradigm'])
+    raws = i_o.preload_raws(subject_paradigm_visit_dir, subject_fnames['raw_paradigm'])
     bads_list = handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir)
 
     if para_cfg.proc_using_erm:
