@@ -31,8 +31,8 @@ def run_subject(subject, subject_filenaming_dict):
 def run_subjects():
     """ process all subjects in the paradigm directory"""
     for subject_folder_path, directory_names, filenames in walk(paradigm_cfg.paradigm_dir):
-        path_identification = op.split(subject_folder_path)
-        if 'visit' not in path_identification[1]:
+        path_identification = op.split(subject_folder_path) # split the file path to obtain current subfolder name
+        if 'visit' not in path_identification[1]: # if the current location isn't a visit subfolder, skip
             continue
         visit_folder = path_identification[1]
         subject = op.split(path_identification[0])[1]  # split the path again to obtain the subject ID
