@@ -20,7 +20,7 @@ def main(subject, subject_fnames, log):
 
         epochs = mne.read_epochs(join(subject_fnames['epochs_subdir'], epoch_fname),
                                  proj=para_cfg.epochs_parameters_dict['proj'], preload=True)
-        evoked = epochs.average(method='average')
+        evoked = epochs.average(method='mean')
         evoked.save(join(subject_fnames['epochs_subdir'], evoked_fname))
 
         anlys.calc_sensor_tfr(epochs, para_cfg.freqs, para_cfg.n_cycles, para_cfg.n_jobs,

@@ -1,14 +1,6 @@
-from enum import Enum
 import paradigm_config as para_cfg
 import io_helpers as i_o
 from os.path import join
-
-
-class Sentinel(Enum):
-    """Success sentinels for the various stages of processing."""
-    MAXWELL = "maxwell_success"
-    EPOCH = "epoch_success"
-    SENSORS_TFR = "sensor_tfr_success"
 
 ### TOP LEVEL: HARD-CODED LOCATIONS
 meg_dir = para_cfg.meg_dir # MEG directory
@@ -33,8 +25,8 @@ sensor_evoked_ext = epoch_ext.replace('epo.fif', 'evoked_filler.png')
 sensor_tfr_ext = epoch_ext.replace('epo.fif', 'tfr_kind-tfr.h5')
 sensor_psd_ext = epoch_ext.replace('epo.fif', 'CH_TYPE_psd.npy')
 
-sensor_tfr_plot_ext = sensor_tfr_ext.replace('-tfr.h5', '_filler.png')
-sensor_psd_plot_ext = sensor_psd_ext.replace('npy', 'png')
+sensor_tfr_plot_ext = sensor_tfr_ext.replace('tfr_kind-tfr.h5', '_filler.png')
+sensor_psd_plot_ext = sensor_psd_ext.replace('CH_TYPE_psd.npy', 'PSD.png')
 
 inv_ext = epoch_ext.replace('epo', 'inv')
 
@@ -44,31 +36,23 @@ epoched_script_log_name = f'{paradigm}_epoch_script_{para_cfg.current_datetime}.
 sensor_space_script_log_name = f'{paradigm}_sensor_space_script_{para_cfg.current_datetime}.log'
 inverse_script_log_name = f'{paradigm}_inverse_sol_script_{para_cfg.current_datetime}.log'
 
-def create_paradigm_subject_mapping(subject):
+def create_paradigm_subject_mapping(subject, visit_folder):
     """ create a dictionary whose keys are relevant/required subdirectories/filenames,
     and whose values are the very filename formatted with appropriate variables
     :param subject: string denoting subject ID
     :return: subject dictionary containing all of their relevant, formatted filenames/subdirectories
     """
     subject_filenames_dict = {}
-
     subject_paradigm_dir = join(paradigm_dir, subject)
-
     subject_paradigm_tag = f'{subject}_{paradigm}'
+
     raw_pattern = '_'.join((subject_paradigm_tag, '*raw.fif'))
+    subject_paradigm_date_tag = '_'.join((subject_paradigm_tag, visit_folder.replace('visit_', ''))) # attach visit to breadcrumbs
 
-    visit_date = i_o.get_measure_date_from_path(subject_paradigm_dir, raw_pattern) # read the subject's visit date
-    subject_paradigm_date_tag = '_'.join((subject_paradigm_tag, visit_date)) # attach visit date to breadcrumbs
+    subject_filenames_dict['meg_date'] = visit_folder.replace('visit_', '')
 
-    # SG - so there is a sentinel file/object for each subject, located in their paradigm directory
-    subject_filenames_dict[Sentinel.MAXWELL] = join(subject_paradigm_dir, Sentinel.MAXWELL.value)
-    subject_filenames_dict[Sentinel.EPOCH] = join(subject_paradigm_dir, Sentinel.EPOCH.value)
-    subject_filenames_dict[Sentinel.SENSORS_TFR] = join(subject_paradigm_dir, Sentinel.SENSORS_TFR.value)
-
-    subject_filenames_dict['meg_date'] = visit_date
-
-    subject_filenames_dict['epochs_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'epoched')
-    subject_filenames_dict['preproc_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'preprocessing')
+    subject_filenames_dict['epochs_subdir'] = join(subject_paradigm_dir, visit_folder, 'epoched')
+    subject_filenames_dict['preproc_subdir'] = join(subject_paradigm_dir, visit_folder, 'preprocessing')
 
     subject_filenames_dict['epochs_sensor_subdir'] = join(subject_filenames_dict['epochs_subdir'], 'sensor_space')
     subject_filenames_dict['preproc_plots_subdir'] = join(subject_filenames_dict['preproc_subdir'], 'plots')
@@ -99,7 +83,7 @@ def create_paradigm_subject_mapping(subject):
     subject_filenames_dict['sensor_psd_plot'] = '_'.join((subject_paradigm_date_tag, sensor_psd_plot_ext))
     subject_filenames_dict['evoked_plot'] = '_'.join((subject_paradigm_date_tag, sensor_evoked_ext))
 
-    subject_filenames_dict['inverse_subdir'] = join(subject_paradigm_dir, f'visit_{visit_date}', 'inverse')
+    subject_filenames_dict['inverse_subdir'] = join(subject_paradigm_dir, visit_folder, 'inverse')
     subject_filenames_dict['inverse_name'] = '_'.join((subject_paradigm_date_tag, inv_ext))
     subject_filenames_dict['bem_plot'] = '_'.join((subject_paradigm_date_tag, 'bem_plot.png'))
     subject_filenames_dict['coreg_plot'] = '_'.join((subject_paradigm_date_tag, 'alignment_plot.png'))

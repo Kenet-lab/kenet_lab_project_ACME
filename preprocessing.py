@@ -22,9 +22,7 @@ def apply_notch_filter_to_eeg(raw, n_jobs, loc, eeg_bads_fname, epochs_parameter
         raw.notch_filter(np.arange(notch_freq, 241, notch_freq), picks=['eeg'], n_jobs=n_jobs)
     return raw
 
-
-def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname,
-                  epochs_parameters_dict, save=True):
+def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc, signal_fname, eeg_bads_fname, epochs_parameters_dict, save=True):
     """
     :param raw: signal to bandpass filter
     :param l_freq: lower cutoff frequency
@@ -41,9 +39,9 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, sav
     if raw.__contains__('eeg'):
         raw.set_montage('mgh70') # import correct cap layout
         raw.set_eeg_reference(ref_channels='average') # apply average reference
-        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
+        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc, eeg_bads_fname, epochs_parameters_dict)
     if save:
-        raw.save(join(save_loc_signal, signal_fname))
+        raw.save(join(save_loc, signal_fname), overwrite=True)
     return raw
 
 
@@ -81,8 +79,9 @@ def ssp_exg(raw, ssp_dict, n_jobs, proj_fname, proj_save_loc, ssp_topo_pattern, 
                         ssp_topo_pattern, plot_save_loc)
     blink_projs = ssp_eog(raw, ssp_dict['params'], eog_fab_channels_usable, n_jobs, proj_fname, proj_save_loc,
                           ssp_topo_pattern, plot_save_loc)
-
-    raw.add_proj(qrs_projs + blink_projs) # add the projections to the signal
+    for proj in [qrs_projs, blink_projs]:
+        if proj:
+            raw.add_proj(proj)
     raw.apply_proj() # clean the data
     return raw
 
@@ -92,10 +91,10 @@ def ssp_ecg(raw, ssp_params, ecg_fab_channels, n_jobs, proj_fname, proj_save_loc
         qrs_projs = find_ecg_artifacts_without_ecg_channel(raw, ssp_params, ecg_fab_channels, n_jobs)
     else:
         qrs_projs, qrs = mne.preprocessing.ssp.compute_proj_ecg(raw, **ssp_params, n_jobs=n_jobs)
-
-    i_o.save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
-    vis.make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
-    i_o.log_projs(qrs_projs, 'ECG')
+    if qrs_projs:
+        i_o.save_proj(qrs_projs, proj_save_loc, proj_fname, 'ECG')
+        vis.make_topomap(raw, qrs_projs, plot_save_loc, ssp_topo_pattern, 'ECG')
+        i_o.log_projs(qrs_projs, 'ECG')
     return qrs_projs
 
 def find_ecg_artifacts_without_ecg_channel(raw, ssp_params, ecg_fab_channels, n_jobs):
@@ -111,10 +110,10 @@ def ssp_eog(raw, ssp_params, eog_fab_channels, n_jobs, proj_fname, proj_save_loc
         blink_projs = find_eog_artifacts_without_eog_channel(raw, ssp_params, eog_fab_channels, n_jobs)
     else:
         blink_projs, blinks = mne.preprocessing.ssp.compute_proj_eog(raw, **ssp_params, n_jobs=n_jobs)
-
-    i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
-    vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
-    i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
+    if blink_projs:
+        i_o.save_proj(blink_projs, proj_save_loc, proj_fname, 'EOG')
+        vis.make_topomap(raw, blink_projs, plot_save_loc, ssp_topo_pattern, 'EOG')
+        i_o.log_projs(blink_projs, 'EOG') # add a message argument (ex: frontal channels were used)
     return blink_projs
 
 def find_eog_artifacts_without_eog_channel(raw, ssp_params, eog_fab_channels, n_jobs):
@@ -154,11 +153,13 @@ def calc_head_position(raw, save_loc, fname):
     :param raw: raw file to generate head position matrix for
     :return: head postion array
     """
-    ext_order = 3
-    chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw, ext_order=ext_order)
-    chpi_locs = mne.chpi.compute_chpi_locs(raw.info, chpi_amplitudes)
-    head_pos = mne.chpi.compute_head_pos(raw.info, chpi_locs)
-    np.savetxt(join(save_loc, fname), head_pos)
+    if not raw.__contains__('chpi'):
+        head_pos = None
+    else:
+        chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw, ext_order=ext_order)
+        chpi_locs = mne.chpi.compute_chpi_locs(raw.info, chpi_amplitudes)
+        head_pos = mne.chpi.compute_head_pos(raw.info, chpi_locs)
+        np.savetxt(join(save_loc, fname), head_pos)
     return head_pos
 
 
@@ -169,9 +170,10 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
     :param sss_params: dictionary containing relevant SSS/maxwell filtering parameters
     :return: raw file with bad MEG channels added to its header, as well as the bad channels detected
     """
+    params_copy = sss_params.copy()
     for key in ['st_correlation', 'destination', 'st_duration']:
-        sss_params.pop(key) # remove un-needed arguments from parameters dictionary
-    noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw, **sss_params) # find the bad channels
+        params_copy.pop(key) # remove un-needed arguments from parameters dictionary
+    noisy, flat = mne.preprocessing.find_bad_channels_maxwell(raw, **params_copy) # find the bad channels
     bads = noisy + flat
     i_o.save_bad_channels(raw, bads, subject_preproc_dir, meg_bads_fname) # save accordingly
     return bads
@@ -179,7 +181,7 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
 
 def find_bads_eeg(raw, epochs_parameters_dict, n_jobs, subject_preproc_dir, eeg_bads_fname):
 
-    events, events_differential_corrected = i_o.find_events(raw, stim_channel='STI101')
+    events = mne.find_events(raw, stim_channel='STI101', shortest_event=1)
     eeg_data = raw.copy().pick_types(meg=False, eeg=True)
 
     eeg_epochs = mne.Epochs(eeg_data, events, tmin=epochs_parameters_dict['tmin'], tmax=epochs_parameters_dict['tmax'],

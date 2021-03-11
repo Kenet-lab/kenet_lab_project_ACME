@@ -14,13 +14,12 @@ def main(subject, subject_fnames, log):
     for subdir in ['preproc_subdir', 'preproc_plots_subdir', 'epochs_subdir']:
         i_o.check_and_build_subdir(subject_fnames[subdir])
 
-    sssd_data = i_o.preload_raws(subject_paradigm_dir, subject_fnames['sss_paradigm'])
+    sssd_data = i_o.preload_raws(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm'])[0]
 
     events, events_differential_corrected = i_o.find_events(sssd_data, 'STI101', para_cfg.paradigm, para_cfg.epoch_dur)
 
-    filt = preproc.filter_signal(sssd_data, para_cfg.l_freq, para_cfg.h_freq, para_cfg.n_jobs, subject_paradigm_dir,
-                                 subject_fnames['eeg_bads'], subject_fnames['preproc_subdir'], subject_fnames['filt_paradigm'],
-                                 para_cfg.epochs_parameters_dict)
+    filt = preproc.filter_signal(sssd_data, para_cfg.l_freq, para_cfg.h_freq, para_cfg.n_jobs, subject_fnames['preproc_subdir'],
+                                 subject_fnames['filt_paradigm'], subject_fnames['eeg_bads'], para_cfg.epochs_parameters_dict)
 
     if para_cfg.preproc_ssp:
         raw_sss_filt_ssp = preproc.ssp_exg(filt, rm_arti_cfg.ssp_dict, para_cfg.n_jobs, subject_fnames['proj'],

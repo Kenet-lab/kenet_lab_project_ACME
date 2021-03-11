@@ -51,7 +51,7 @@ def find_events(raw, stim_channel, paradigm, event_duration):
     :return: events baseline
     """
     if paradigm in ['fix', 'fixation', 'RestingState', 'EyesClosed', 'EyesOpen']:
-        events = mne.make_fixed_length_events(raw, duration=event_duration)
+        events = mne.make_fixed_length_events(raw, duration=event_duration/1000.)
     else:
         events = mne.find_events(raw, stim_channel=stim_channel, shortest_event=1)
     # shortest event -> the minimum number of samples an event must last
@@ -125,15 +125,15 @@ def check_and_build_subdir(subdir): # needs work, should replace more than subje
 
 def save_bad_channels(raw, bads, save_loc, save_name):
     with open(join(save_loc, save_name), 'a+') as bads_file:
-        if isfile(bads_file):
+        if isfile(join(save_loc, save_name)):
             current_bads = [line.strip() for line in bads_file.readlines()]
             bads_to_add = list(set(bads).difference(set(current_bads)))  # check if any of the "new" bads were already saved
-            bads_file.write(raw)
+            bads_file.write(str(raw))
             for bad_to_add in bads_to_add:
                 bads_file.write(f'{bad_to_add}\n')
             bads_file.close()
         else:
-            bads_file.write(raw)
+            bads_file.write(str(raw))
             for bad in bads:
                 bads_file.write(f'{bad}\n')
             bads_file.close()

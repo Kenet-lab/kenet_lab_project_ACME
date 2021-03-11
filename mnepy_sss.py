@@ -18,38 +18,28 @@ def handle_erm(info, subject_erm_dir, raw_erm_fname, erm_sss_pattern): # return 
 
 def handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir):
 
-    sss_list = []
-    bads_list = []
-    subject_sss_params['destination'] = raws[0].info['dev_head_t'] # use run #1 for head position transformation
-    for raw in raws:
-
-        subject_sss_params['origin'] = preproc.generate_head_origin(raw.info, subject_paradigm_dir,
-                                                                    subject_fnames['head_origin'])
-        subject_sss_params['head_pos'] = preproc.calc_head_position(raw, subject_fnames['preproc_subdir'],
-                                                                    subject_fnames['head_pos'])
-
-        bads_meg = preproc.find_bads_meg(raw, subject_sss_params, subject_fnames['preproc_subdir'],
-                                              subject_fnames['meg_bads'], para_cfg.n_jobs)
-        raw.info['bads'].extend(bads_meg) # add bad channels to raw header
-        bads_list.append(bads_meg)
-        sss = mne.preprocessing.maxwell_filter(raw, **subject_sss_params) # SSS the data
-        sss_list.append(sss)
-
-    sss_concat = mne.concatenate_raws(sss_list) # concatenate all runs
-    sss_concat.save(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm'])) # save
-    return bads_list
+    raw = mne.concatenate_raws(raws)
+    subject_sss_params['destination'] = raw.info['dev_head_t'] # use run #1 for head position transformation
+    subject_sss_params['origin'] = preproc.generate_head_origin(raw.info, subject_fnames['preproc_subdir'], subject_fnames['head_origin'])
+    subject_sss_params['head_pos'] = preproc.calc_head_position(raw, subject_fnames['preproc_subdir'],  subject_fnames['head_pos'])
+    bads_meg = preproc.find_bads_meg(raw, subject_sss_params, subject_fnames['preproc_subdir'], subject_fnames['meg_bads'], para_cfg.n_jobs)
+    raw.info['bads'].extend(bads_meg)
+    sss = mne.preprocessing.maxwell_filter(raw, **subject_sss_params)  # SSS the data
+    sss.save(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm']), overwrite=True) # save
+    return bads_meg
 
 
 def main(subject, subject_fnames, log):
     logging.basicConfig(filename=log, level=logging.DEBUG)
 
     subject_paradigm_dir = join(para_cfg.paradigm_dir, subject)
+    subject_paradigm_visit_dir = join(subject_paradigm_dir, f"visit_{subject_fnames['meg_date']}")
     subject_erm_dir = join(para_cfg.erm_dir, subject)
     subject_sss_params = sss_cfg.sss_params # load SSS parameters dictionary
 
     i_o.check_and_build_subdir(subject_fnames['preproc_subdir']) # check and/or build subject subdirectories relevant to the script
 
-    raws = i_o.preload_raws(join(subject_paradigm_dir, subject_fnames['meg_date']), subject_fnames['raw_paradigm'])
+    raws = i_o.preload_raws(subject_paradigm_visit_dir, subject_fnames['raw_paradigm'])
     bads_list = handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir)
 
     if para_cfg.proc_using_erm:
