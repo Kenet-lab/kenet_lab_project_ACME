@@ -24,7 +24,6 @@ paradigm_vars_output_filename = f'{paradigm}_paradigm_config_variables_output_{c
 
 reports_dir = join(paradigm_dir, 'reports')
 
-
 # noise covariance matrix, inverse computation done by using either baseline period or ERM
 proc_using_baseline = True
 proc_using_erm = False if proc_using_baseline else True
