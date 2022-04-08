@@ -4,7 +4,8 @@ import mne
 import io_helpers as i_o
 import preprocessing as preproc
 import maxwell_filter_config as sss_cfg
-from os.path import join
+import os
+from os.path import join, exists
 
 
 def handle_erm(info, subject_erm_dir, raw_erm_fname, erm_sss_pattern): # return ERM file locations, directory information
@@ -18,14 +19,23 @@ def handle_erm(info, subject_erm_dir, raw_erm_fname, erm_sss_pattern): # return 
 
 def handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir):
 
-    raw = mne.concatenate_raws(raws)
-    subject_sss_params['destination'] = raw.info['dev_head_t'] # use run #1 for head position transformation
-    subject_sss_params['origin'] = preproc.generate_head_origin(raw.info, subject_fnames['preproc_subdir'], subject_fnames['head_origin'])
-    subject_sss_params['head_pos'] = preproc.calc_head_position(raw, subject_fnames['preproc_subdir'],  subject_fnames['head_pos'])
-    bads_meg = preproc.find_bads_meg(raw, subject_sss_params, subject_fnames['preproc_subdir'], subject_fnames['meg_bads'], para_cfg.n_jobs)
-    raw.info['bads'].extend(bads_meg)
-    sss = mne.preprocessing.maxwell_filter(raw, **subject_sss_params)  # SSS the data
-    sss.save(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm']), overwrite=True) # save
+    sss_list = []
+    bads_list = []
+    if raws[0].info['dev_head_t'] is None:
+        return
+    subject_sss_params['destination'] = raws[0].info['dev_head_t'] # use run #1 for head position transformation
+    raw_concat = mne.concatenate_raws(raws)
+    if len(raw_concat.info['dig']) < 8:
+        return
+    subject_sss_params['origin'] = preproc.generate_head_origin(raw_concat.info, subject_paradigm_dir,
+                                                                  subject_fnames['head_origin'])
+    subject_sss_params['head_pos'] = preproc.calc_head_position(raw_concat, subject_fnames['preproc_subdir'],
+                                                                  subject_fnames['head_pos'])
+    bads_meg = preproc.find_bads_meg(raw_concat, subject_sss_params, subject_fnames['preproc_subdir'],
+                                     subject_fnames['meg_bads'], para_cfg.n_jobs)
+    raw_concat.info['bads'].extend(bads_meg)
+    sss = mne.preprocessing.maxwell_filter(raw_concat, **subject_sss_params)
+    sss.save(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm']), overwrite=True)
     return bads_meg
 
 
@@ -39,8 +49,10 @@ def main(subject, subject_fnames, log):
 
     i_o.check_and_build_subdir(subject_fnames['preproc_subdir']) # check and/or build subject subdirectories relevant to the script
 
-    raws = i_o.preload_raws(subject_paradigm_visit_dir, subject_fnames['raw_paradigm'])
-    bads_list = handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir)
+    
+    if not exists(join(subject_fnames['preproc_subdir'], subject_fnames['sss_paradigm'])):
+        raws = i_o.preload_raws(subject_paradigm_visit_dir, subject_fnames['raw_paradigm'])
+        bads_list = handle_multiple_runs(raws, subject_sss_params, subject_fnames, subject_paradigm_dir)
 
     if para_cfg.proc_using_erm:
         raw_erm, erm_sss_fname = handle_erm(raws[0].info, subject_erm_dir, subject_fnames['raw_erm'], subject_fnames['sss_erm'])

@@ -2,7 +2,7 @@ import mne
 import fnmatch
 import logging
 import numpy as np
-from os.path import join, isdir, isfile
+from os.path import join, isdir, isfile, exists
 from os import mkdir, listdir
 
 

@@ -32,8 +32,8 @@ def plot_sensor_space_tfr(itc, power, picks, save_loc, save_name):
         pow_ax = axs[1, idx] if len(picks) == 2 else axs[1]
         itc.plot(picks=pick, baseline=None, show=False, combine='mean', axes=itc_ax, exclude='bads', colorbar=False)
         power.plot(picks=pick, baseline=None, show=False, combine='mean', axes=pow_ax, exclude='bads', colorbar=False)
-        axs[0, idx].set_title(f'ITC: {pick.upper()}')
-        axs[1, idx].set_title(f'Power: {pick.upper()}')
+        itc_ax.set_title(f'ITC: {pick.upper()}')
+        pow_ax.set_title(f'Power: {pick.upper()}')
     fig.suptitle('Sensor space time-frequency')
     fig.savefig(join(save_loc, save_name))
     plt.close(fig)
@@ -43,7 +43,6 @@ def plot_sensor_channels_arrays_by_frequency(sensor_data, freqs, picks, save_loc
 
     fig, axs = plt.subplots(1, len(picks), sharex=True, sharey=True)
     for idx, pick in enumerate(picks):
-        ax = axs[idx] if len(picks) == 2 else axs
         if isinstance(sensor_data, mne.time_frequency.AverageTFR):
             sensor_array = sensor_data.copy().pick(picks=pick).data.mean(axis=2)
             freq_array = sensor_data.freqs
@@ -53,11 +52,15 @@ def plot_sensor_channels_arrays_by_frequency(sensor_data, freqs, picks, save_loc
             sensor_array = sensor_data[idx]
             sensor_array /= sensor_array.mean()
             title_id = 'PSD'
-
-        ax.plot(freq_array, sensor_array.T)
-        ax.set_title(pick.upper())
-        ax.set_xlabel('Frequency [Hz]')
-
+        if len(picks) == 2:
+            axs[idx].plot(freq_array, sensor_array.T)
+            axs[idx].set_title(pick.upper())
+            axs[idx].set_xlabel('Frequency [Hz]')
+        else:
+            axs.plot(freq_array, sensor_array.T)
+            axs.set_title(pick.upper())
+            axs.set_xlabel('Frequency [Hz]')
+            
     fig.suptitle(f'Sensor space {title_id}')
     fig.savefig(join(save_loc, save_name))
     plt.close(fig)
@@ -81,7 +84,7 @@ def add_to_sensor_space_report(subject, condition, sensor_subdir, sensor_tfr_plo
                                tfr_temporal_dict, report_dir, report_name):
     i_o.check_and_build_subdir(report_dir)
     report_path = join(report_dir, report_name) # full path to report's location
-    sensor_report = mne.open_report(report_path) # load report
+    sensor_report = mne.open_report(report_path) if isfile(report_path) else mne.Report() # create or load report
 
     t_start = int(tfr_temporal_dict['t_start']* 1000)
     t_end = int(tfr_temporal_dict['t_end']* 1000)

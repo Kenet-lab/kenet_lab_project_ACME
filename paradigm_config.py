@@ -18,14 +18,15 @@ shared_func_dir = join(transcend_dir, 'scripts')
 n_jobs = max(cpu_count() - 4, 1)
 
 ### MID LEVEL ### paradigm-relevant parameters, variables...
-paradigm = 'paradigm'
-paradigm_dir = join(meg_dir, 'sandbox', paradigm)
+paradigm = 'ASSRnew_Jumps'
+paradigm_dir = join(meg_dir, paradigm)
 paradigm_vars_output_filename = f'{paradigm}_paradigm_config_variables_output_{current_datetime}.txt'
 
 reports_dir = join(paradigm_dir, 'reports')
 
+
 # noise covariance matrix, inverse computation done by using either baseline period or ERM
-proc_using_baseline = True
+proc_using_baseline = False
 proc_using_erm = False if proc_using_baseline else True
 
 ### LOW LEVEL ### analysis-relevant parameters, variables, etc...
@@ -36,16 +37,26 @@ h_freq = 144.
 # merged/specified/grouped event IDs, conditions
 # key <-> condition name
 # value <-> condition's information (nested dictionary)
-conditions_dicts = {'25Hz': {'event_id': [1],
-                            'value': 25.}}
+conditions_dicts = {'Jump': {'event_id': [1, 2, 3, 4]},
+                    'NoJump': {'event_id': [5, 6, 7, 8, 9, 10, 11, 12]},
+                    'Jump25Hz': {'event_id': [1, 3]},
+                    'Jump43Hz': {'event_id': [2, 4]},
+                    'NoJump25Hz': {'event_id': [5, 7, 9, 11]},
+                    'NoJump43Hz': {'event_id': [6, 8, 10, 12]},
+                    'L2R': {'event_id': [1, 2]},
+                    'R2L': {'event_id': [3, 4]},
+                    'L2L': {'event_id': [5, 6, 9, 10]},
+                    'R2R': {'event_id': [7, 8, 11, 12]}}
+
+
 
 # artifact removal method(s)
 preproc_ssp = True
 preproc_ica = False if preproc_ssp else True # eventually add infrastructure to handle both methods simultaneously
 
 # epoching parameters
-epoch_tmin = -0.2
-epoch_tmax = 1.
+epoch_tmin = -0.3
+epoch_tmax = 2.
 
 epoch_dur = (epoch_tmax - epoch_tmin) * 1000.
 epoch_baseline = (epoch_tmin, 0.)
@@ -62,12 +73,12 @@ epochs_parameters_dict = {'tmin': epoch_tmin, 'tmax': epoch_tmax,
                           'reject': None}
 
 # parameters dictionary for windowing power/ITC, include modes like 'mean', 'max'...
-freqs = arange(7, 99, 2) # frequencies of interest
+freqs = arange(15, 50, 2) # frequencies of interest
 n_cycles = freqs / 2.  # different number of cycles per frequency
 n_cycles[freqs < 15] = 2
 
 # sensor power/ITC windowing parameters
-tfr_t_start = 0.2
+tfr_t_start = 0.1
 tfr_t_end = 0.9
 tfr_temporal_dict = {'t_start':tfr_t_start, 't_end': tfr_t_end}
 

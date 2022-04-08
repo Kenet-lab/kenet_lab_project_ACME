@@ -19,23 +19,32 @@ def run_subject(subject, subject_filenaming_dict):
     """ process a single subject"""
     # maxwell filtering script
     run_if_needed(maxwell_main, subject, subject_filenaming_dict,
-                  fname_cfg.maxwell_script_log_name)
+                  fname_cfg.maxwell_script_log_name, override=False)
     # further preprocessing and epochs script
     run_if_needed(epochs_main, subject, subject_filenaming_dict,
-                  fname_cfg.epoched_script_log_name)
+                  fname_cfg.epoched_script_log_name, override=True)
     # sensor space script
     run_if_needed(sensor_tfr_main, subject, subject_filenaming_dict,
-                  fname_cfg.sensor_space_script_log_name)
+                  fname_cfg.sensor_space_script_log_name, override=False)
 
 
 def run_subjects():
     """ process all subjects in the paradigm directory"""
     for subject_folder_path, directory_names, filenames in walk(paradigm_cfg.paradigm_dir):
-        path_identification = op.split(subject_folder_path) # split the file path to obtain current subfolder name
-        if 'visit' not in path_identification[1]: # if the current location isn't a visit subfolder, skip
+        path_identification = op.split(subject_folder_path)
+        if 'visit' not in path_identification[1]:
             continue
+        #if len(filenames) == 0:
+        #    continue
+
         visit_folder = path_identification[1]
+        print(path_identification)
+        if len(visit_folder.split('_')[1]) != 8:
+            continue
         subject = op.split(path_identification[0])[1]  # split the path again to obtain the subject ID
+
+        print(subject)
+        print(visit_folder)
 
         subject_filename_dict = fname_cfg.create_paradigm_subject_mapping(subject, visit_folder)
         run_subject(subject, subject_filename_dict)

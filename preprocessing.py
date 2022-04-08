@@ -4,7 +4,7 @@ import autoreject
 import numpy as np
 import io_helpers as i_o
 import visuals as vis
-from os.path import join
+from os.path import join, exists
 
 
 def apply_notch_filter_to_eeg(raw, n_jobs, loc, eeg_bads_fname, epochs_parameters_dict):
@@ -22,7 +22,9 @@ def apply_notch_filter_to_eeg(raw, n_jobs, loc, eeg_bads_fname, epochs_parameter
         raw.notch_filter(np.arange(notch_freq, 241, notch_freq), picks=['eeg'], n_jobs=n_jobs)
     return raw
 
-def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc, signal_fname, eeg_bads_fname, epochs_parameters_dict, save=True):
+
+def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc_eeg, eeg_bads_fname, save_loc_signal, signal_fname,
+                  epochs_parameters_dict, save=True):
     """
     :param raw: signal to bandpass filter
     :param l_freq: lower cutoff frequency
@@ -36,12 +38,14 @@ def filter_signal(raw, l_freq, h_freq, n_jobs, save_loc, signal_fname, eeg_bads_
     :return: bandpass filtered signal
     """
     raw.filter(l_freq=l_freq, h_freq=h_freq, n_jobs=n_jobs) # filter the signal accordingly
+    """
     if raw.__contains__('eeg'):
         raw.set_montage('mgh70') # import correct cap layout
         raw.set_eeg_reference(ref_channels='average') # apply average reference
-        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc, eeg_bads_fname, epochs_parameters_dict)
+        raw = apply_notch_filter_to_eeg(raw, n_jobs, save_loc_eeg, eeg_bads_fname, epochs_parameters_dict)
+    """
     if save:
-        raw.save(join(save_loc, signal_fname), overwrite=True)
+        raw.save(join(save_loc_signal, signal_fname), overwrite=True)
     return raw
 
 
@@ -52,10 +56,14 @@ def generate_head_origin(info, subject_meg_dir, head_origin_fname): # calculate,
     :param head_origin_fname: string of filename to save the head origin coordinates
     :return: head origin coordinates array -> [x y z] in METERS!
     """
-    all_coords = mne.bem.fit_sphere_to_headshape(info, units='m') # calculate head origin coordinates
-    head_origin = all_coords[1]
-    logging.info('Head origin coordinates are:\n{}'.format(head_origin))
-    np.savetxt(join(subject_meg_dir, head_origin_fname), head_origin) # save the coordinates
+    try:
+        all_coords = mne.bem.fit_sphere_to_headshape(info, units='m') # calculate head origin coordinates
+        head_origin = all_coords[1]
+        logging.info('Head origin coordinates are:\n{}'.format(head_origin))
+        np.savetxt(join(subject_meg_dir, head_origin_fname), head_origin) # save the coordinates
+    except:
+        head_origin = 'auto'
+
     return head_origin
 
 
@@ -137,8 +145,8 @@ def generate_epochs(raw, events, conditions_dicts, epochs_parameters_dict,
     :param conditions_dicts: dictionary of dictionaries detailing various conditon names, and their event IDs
     :param epochs_parameters_dict: dictionary of epoching parameters
     """
-    if not raw.__contains__('eeg'):
-        del epochs_parameters_dict['reject']['eeg']
+    #if not raw.__contains__('eeg'):
+    #    del epochs_parameters_dict['reject']['eeg']
     for condition_name, condition_info in conditions_dicts.items(): # loop through each condition
         condition_event_id = condition_info['event_id'] # event identifiers to epoch around
         epochs_parameters_dict.update({'event_id': condition_event_id})
@@ -153,13 +161,22 @@ def calc_head_position(raw, save_loc, fname):
     :param raw: raw file to generate head position matrix for
     :return: head postion array
     """
-    if not raw.__contains__('chpi'):
-        head_pos = None
-    else:
-        chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw, ext_order=ext_order)
+    try:
+        chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw)
         chpi_locs = mne.chpi.compute_chpi_locs(raw.info, chpi_amplitudes)
         head_pos = mne.chpi.compute_head_pos(raw.info, chpi_locs)
         np.savetxt(join(save_loc, fname), head_pos)
+    except:
+        head_pos = None
+    """
+    if not raw.__contains__('chpi'):
+        head_pos = None
+    else:
+        chpi_amplitudes = mne.chpi.compute_chpi_amplitudes(raw)
+        chpi_locs = mne.chpi.compute_chpi_locs(raw.info, chpi_amplitudes)
+        head_pos = mne.chpi.compute_head_pos(raw.info, chpi_locs)
+        np.savetxt(join(save_loc, fname), head_pos)
+    """
     return head_pos
 
 
@@ -180,7 +197,7 @@ def find_bads_meg(raw, sss_params, subject_preproc_dir, meg_bads_fname, n_jobs):
 
 
 def find_bads_eeg(raw, epochs_parameters_dict, n_jobs, subject_preproc_dir, eeg_bads_fname):
-
+    
     events = mne.find_events(raw, stim_channel='STI101', shortest_event=1)
     eeg_data = raw.copy().pick_types(meg=False, eeg=True)
 
