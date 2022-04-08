@@ -14,8 +14,8 @@ is generically imported/aliased as "para_cfg". < Liable to change in future vers
 The paradigm wrapper script will interface with the paradigm and
 filenaming configurations, passing the subject's ID, filenaming
 dictionary, and relevant logging file.
-  1. mne_maxwell
-  2. epochs_mod
-  3. sensor_tfr
+  1. mnepy_sss
+  2. epoching
+  3. sensor_space_analysis
   
   
