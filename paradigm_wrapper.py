@@ -19,7 +19,7 @@ def run_subject(subject, subject_filenaming_dict):
     """ process a single subject"""
     # maxwell filtering script
     run_if_needed(maxwell_main, subject, subject_filenaming_dict,
-                  fname_cfg.maxwell_script_log_name, override=False)
+                  fname_cfg.maxwell_script_log_name, override=True)
     # further preprocessing and epochs script
     run_if_needed(epochs_main, subject, subject_filenaming_dict,
                   fname_cfg.epoched_script_log_name, override=True)
@@ -30,7 +30,7 @@ def run_subject(subject, subject_filenaming_dict):
 
 def run_subjects():
     """ process all subjects in the paradigm directory"""
-    for subject_folder_path, directory_names, filenames in walk(paradigm_cfg.paradigm_dir):
+    for subject_folder_path, directory_names, filenames in walk(paradigm_cfg.raw_meg_dir):
         path_identification = op.split(subject_folder_path)
         if 'visit' not in path_identification[1]:
             continue
