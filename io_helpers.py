@@ -3,7 +3,7 @@ import fnmatch
 import logging
 import numpy as np
 from os.path import join, isdir, isfile, exists
-from os import mkdir, listdir
+from os import mkdir, listdir, makedirs
 
 
 def find_file_matches(loc, pattern):
@@ -119,7 +119,7 @@ def check_and_build_subdir(subdir): # needs work, should replace more than subje
     :param subject: subject ID
     """
     if not isdir(subdir):
-        mkdir(subdir)
+        makedirs(subdir)
         logging.info(f'{subdir} created')
 
 

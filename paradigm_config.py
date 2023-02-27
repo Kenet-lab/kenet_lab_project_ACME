@@ -7,6 +7,7 @@ from time import strftime
 current_datetime = strftime('%Y%m%d-%H%M%S')
 
 transcend_dir = '/autofs/cluster/transcend'
+local_dir     = '/local_mount/space/tapputi/1/users/sergio'
 
 meg_dir = join(transcend_dir, 'MEG') # MEG directory
 erm_dir = join(meg_dir, 'erm') # MEG empty room recordings directory
@@ -18,8 +19,9 @@ shared_func_dir = join(transcend_dir, 'scripts')
 n_jobs = max(cpu_count() - 4, 1)
 
 ### MID LEVEL ### paradigm-relevant parameters, variables...
-paradigm = 'ASSRnew_Jumps'
-paradigm_dir = join(meg_dir, paradigm)
+paradigm     = 'fix'   
+raw_meg_dir  = join(meg_dir, paradigm)
+paradigm_dir = join(local_dir, paradigm)
 paradigm_vars_output_filename = f'{paradigm}_paradigm_config_variables_output_{current_datetime}.txt'
 
 reports_dir = join(paradigm_dir, 'reports')
